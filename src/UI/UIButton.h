@@ -13,7 +13,7 @@ public:
 	~UIButton();
 
 	void Initalize(UIRenderStruct& UIRenderStruct, CompDelegates& tmpDelegate) override;
-	void Update() override;
+	void Update(float deltaTime) override;
 	void Render() override;
 
 	// 이미지 경로 설정

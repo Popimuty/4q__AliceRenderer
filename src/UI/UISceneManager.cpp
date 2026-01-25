@@ -143,6 +143,40 @@ void UIWorld::Initialize(UIRenderStruct* UIRst)
 	);
 }
 
+
+// UIGaugeBar 템플릿 특수화: 배경 이미지와 게이지 바 이미지를 자동 생성
+template<>
+UIGaugeBar* UIWorld::CreateEntity<UIGaugeBar>()
+{
+	assert(m_UIRenderStruct && "UIWorld::Initialize() must be called before CreateEntity");
+
+	// 해당 오브젝트 생성
+	auto pUIObj = std::unique_ptr<UIGaugeBar>(new UIGaugeBar());
+	UIGaugeBar* ObjPtr = pUIObj.get();
+	ObjPtr->SetID(this->nowInteger);
+
+	pUIObjStorage.emplace(this->nowInteger, std::move(pUIObj));
+	m_rootID.push_back(this->nowInteger); // 루트 추가
+	long unsigned gaugeBarID = this->nowInteger;
+	this->nowInteger++;
+
+	// 자식 생성
+	UIImage* bgImage = CreateChildEntity<UIImage>(gaugeBarID);
+	UIImage* barImage = CreateChildEntity<UIImage>(gaugeBarID);
+	UIImage* lerpDImage = CreateChildEntity<UIImage>(gaugeBarID);
+	UIImage* lerpUImage = CreateChildEntity<UIImage>(gaugeBarID);
+
+
+	// 생성된 이미지들을 UIGaugeBar 멤버 변수에 할당
+	ObjPtr->SetupParts(bgImage, barImage, lerpUImage, lerpDImage);
+
+	// UIGaugeBar 초기화
+	ObjPtr->Initalize(*m_UIRenderStruct, m_worldDelegates);
+
+	return ObjPtr;
+}
+
+
 //UITextComponent* UIWorld::CreateTextComponent(unsigned long ownerID)
 //{
 //	// 이미 해당 ownerID에 컴포넌트가 있다면 그대로 반환
@@ -487,17 +521,17 @@ void UILayoutSystem::UpdateTransformChild(UIWorld& world, UIBase* node, const D2
 	}
 }
 
-void UILayoutSystem::UpdateUI(UIWorld& world)
+void UILayoutSystem::UpdateUI(UIWorld& world, float deltaTime)
 {
 	for (auto rootID : world.GetRootIDs())
 	{
 		if (auto* root = world.Get(rootID))
 		{
-			root->Update();
+			root->Update(deltaTime);
 			world.Traverse(root,
-				[](UIBase* node)
+				[deltaTime](UIBase* node)
 				{
-					node->Update();
+					node->Update(deltaTime);
 				}
 			);
 		}
@@ -668,16 +702,16 @@ void UISceneManager::initalize(ID3D11Device* Dev, ID3D11DeviceContext* DevCon, U
 	m_world.Initialize(UIRst);
 }
 
-void UISceneManager::Update()
+void UISceneManager::Update(float deltaTime)
 {
 	// Layout System: Transform ����
 	UILayoutSystem::UpdateTransforms(m_world);
 
 	// Layout System: UI Update
-	UILayoutSystem::UpdateUI(m_world);
+	UILayoutSystem::UpdateUI(m_world, deltaTime);
 
 	// Script System: UI_ScriptComponent 업데이트
-	UIScriptSystem::Tick(m_world, 0.0f); // dt가 아직 별도로 관리되지 않아 0 전달
+	UIScriptSystem::Tick(m_world, deltaTime);
 
 	// Image System: UI_ImageComponent 업데이트
 	UIImageSystem::Update(m_world);

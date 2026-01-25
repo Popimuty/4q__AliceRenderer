@@ -170,7 +170,7 @@ void UIWorldManager::Update(UINT w, UINT h)
         m_nowManager = it->second.get();
         if (m_nowManager)
         {
-            m_nowManager->Update();
+            m_nowManager->Update(0.0f);
         }
     }
 }
@@ -1063,7 +1063,7 @@ bool UIWorldManager::LoadUI(const std::filesystem::path& worldScenePath, const A
         // (3) 레이아웃 강제 갱신(Update transforms)
         // ============================================================================
         UILayoutSystem::UpdateTransforms(uiWorld);
-        UILayoutSystem::UpdateUI(uiWorld);
+        UILayoutSystem::UpdateUI(uiWorld, 0.0f);
     }
     else
     {
@@ -1217,7 +1217,7 @@ void UIWorldManager::ReinitializeAllUIComponents(UIRenderStruct* renderStruct)
         // ============================================================================
         ALICE_LOG_INFO("[UIWorldManager] Updating UI transforms and layout for scene '%s'...", sceneName.c_str());
         UILayoutSystem::UpdateTransforms(uiWorld);
-        UILayoutSystem::UpdateUI(uiWorld);
+        UILayoutSystem::UpdateUI(uiWorld, 0.0f);
         ALICE_LOG_INFO("[UIWorldManager] UI transforms and layout updated for scene '%s'", sceneName.c_str());
     }
     
@@ -1356,7 +1356,7 @@ void UIWorldManager::EnsureAllUIResources()
             ALICE_LOG_INFO("[UIWorldManager] Updating UI transforms and layout for scene '%s' after resource recovery...", 
                           sceneName.c_str());
             UILayoutSystem::UpdateTransforms(uiWorld);
-            UILayoutSystem::UpdateUI(uiWorld);
+            UILayoutSystem::UpdateUI(uiWorld, 0.0f);
             ALICE_LOG_INFO("[UIWorldManager] UI transforms and layout updated for scene '%s'", sceneName.c_str());
         }
     }

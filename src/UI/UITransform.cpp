@@ -16,6 +16,10 @@ void UITransform::SetScale(float scaleX, float scaleY)
 	m_scale.x = scaleX; m_scale.y = scaleY;
 }
 
+void UITransform::SetPivot(float pivotX, float pivotY) 
+{
+	m_pivot.x = pivotX; m_pivot.y = pivotY;
+}
 
 void UITransform::Reset()
 {

@@ -15,7 +15,7 @@ void UIImage::Initalize(UIRenderStruct& UIRenderStruct, CompDelegates& tmpDelega
 
 }
 
-void UIImage::Update()
+void UIImage::Update(float deltaTime)
 {
 
 };

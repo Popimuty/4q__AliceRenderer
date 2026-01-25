@@ -24,6 +24,9 @@
 #include "UI_ImageComponent.h"
 #include "UI_ScriptComponent.h"
 #include "UIScriptSystem.h"
+#include "UIImage.h"
+#include "UIGaugeBar.h"
+#include "Core/Logger.h"
 
 // Forward declaration
 class UIButton;
@@ -108,6 +111,9 @@ public:
 	template<typename T, typename... Args>
 		requires std::derived_from<T, UIBase>
 	T* CreateChildEntity(long unsigned parentID, Args&&... args);
+
+	template<>
+	inline UIGaugeBar* CreateEntity<UIGaugeBar>();
 
 	// UI 엔티티 삭제 (자식까지 전체 삭제 포함)
 	bool DestroyEntity(long unsigned int handle);
@@ -227,7 +233,7 @@ class UILayoutSystem
 {
 public:
 	static void UpdateTransforms(UIWorld& world);
-	static void UpdateUI(UIWorld& world);
+	static void UpdateUI(UIWorld& world, float deltaTime);
 
 private:
 	static void UpdateTransformChild(UIWorld& world, UIBase* node, const D2D1::Matrix3x2F& parentWorld);
@@ -332,7 +338,7 @@ private:
 
 public:
 	void initalize(ID3D11Device* Dev, ID3D11DeviceContext* DevCon, UIRenderStruct* UIRst, Alice::InputSystem* tmpSystem);
-	void Update();
+	void Update(float deltaTime);
 	void Render();
 
 	// UIWorld 접근
@@ -569,3 +575,5 @@ T* UIWorld::CreateComponent(unsigned long ownerID, Args&&... args)
 	void* raw = m_worldDelegates.AddComponent.Execute(ownerID, typeid(T), factory);
 	return static_cast<T*>(raw);
 }
+
+

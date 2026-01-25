@@ -53,7 +53,7 @@ public:
 
     // World 쪽에서 넘겨주는 CompDelegates 를 통해 컴포넌트 생성/조회/삭제를 위임
     virtual void Initalize(UIRenderStruct& UIRenderStruct, CompDelegates& worldDelegates);
-    virtual void Update() = 0;
+    virtual void Update(float deltaTime) = 0;
     virtual void Render() = 0;
 
     long unsigned int getID() { return ID; }

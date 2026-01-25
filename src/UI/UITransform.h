@@ -17,6 +17,7 @@ public:
 	void SetTranslation(float x, float y);
 	void SetRotation(float Rotation);
 	void SetScale(float scaleX, float scaleY);
+	void SetPivot(float pivotX, float pivotY);
 	void GetTransformMat(D2D1::Matrix3x2F& tmp);
 	void Reset();
 

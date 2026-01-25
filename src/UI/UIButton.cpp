@@ -71,7 +71,7 @@ void UIButton::Initalize(UIRenderStruct& UIRenderStruct, CompDelegates& tmpDeleg
 	}
 }
 
-void UIButton::Update()
+void UIButton::Update(float deltaTime)
 {
 	// ImageComponent들 업데이트 (UIImageSystem은 AddComponent로 등록된 것만 처리하므로 수동 호출)
 	if (m_imageNormal) m_imageNormal->Update();
