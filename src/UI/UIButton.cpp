@@ -3,25 +3,19 @@
 #include "Core/InputSystem.h"
 #include "Core/Logger.h"
 #include <cassert>
+#include <ctime>
+#include <cstdio>
 
 UIButton::UIButton()
 {
-	// 멤버 컴포넌트들을 직접 생성 (AddComponent 사용 안 함)
+	// InputComponent만 직접 생성 (이미지는 자식 UIImage로 관리)
 	m_input = new UI_InputComponent();
-	m_imageNormal = new UI_ImageComponent();
-	m_imageHover = new UI_ImageComponent();
-	m_imagePressed = new UI_ImageComponent();
-	m_imageClicked = new UI_ImageComponent();
 }
 
 UIButton::~UIButton()
 {
-	// 멤버 컴포넌트들을 직접 삭제
+	// InputComponent만 직접 삭제 (이미지는 자식 오브젝트로 관리되므로 자동 삭제됨)
 	if (m_input) delete m_input;
-	if (m_imageNormal) delete m_imageNormal;
-	if (m_imageHover) delete m_imageHover;
-	if (m_imagePressed) delete m_imagePressed;
-	if (m_imageClicked) delete m_imageClicked;
 }
 
 void UIButton::Initalize(UIRenderStruct& UIRenderStruct, CompDelegates& tmpDelegate)
@@ -37,96 +31,186 @@ void UIButton::Initalize(UIRenderStruct& UIRenderStruct, CompDelegates& tmpDeleg
 		m_input->OnAdded();
 	}
 
-	// ImageComponent 4개 초기화
-	if (m_imageNormal)
+	// SetupParts로 연결된 자식 UIImage가 있다면 초기 표시 상태 설정
+	// Normal만 보이게, 나머지는 scale 0으로 숨김
+	if (m_imgNormal)
 	{
-		m_imageNormal->Owner = this;
-		m_imageNormal->OwnerID = ID;
-		m_imageNormal->Initalize(UIRenderStruct);
-		m_imageNormal->OnAdded();
+		m_imgNormal->GetTransform().m_scale = DirectX::XMFLOAT2(1.0f, 1.0f);
+	}
+	if (m_imgHover)
+	{
+		m_imgHover->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+	}
+	if (m_imgPressed)
+	{
+		m_imgPressed->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+	}
+	if (m_imgClicked)
+	{
+		m_imgClicked->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
 	}
 
-	if (m_imageHover)
-	{
-		m_imageHover->Owner = this;
-		m_imageHover->OwnerID = ID;
-		m_imageHover->Initalize(UIRenderStruct);
-		m_imageHover->OnAdded();
-	}
-
-	if (m_imagePressed)
-	{
-		m_imagePressed->Owner = this;
-		m_imagePressed->OwnerID = ID;
-		m_imagePressed->Initalize(UIRenderStruct);
-		m_imagePressed->OnAdded();
-	}
-
-	if (m_imageClicked)
-	{
-		m_imageClicked->Owner = this;
-		m_imageClicked->OwnerID = ID;
-		m_imageClicked->Initalize(UIRenderStruct);
-		m_imageClicked->OnAdded();
-	}
+	// 이전 상태 초기화
+	m_prevIsPressed = false;
+	m_prevIsHovered = false;
 }
 
 void UIButton::Update(float deltaTime)
 {
-	// ImageComponent들 업데이트 (UIImageSystem은 AddComponent로 등록된 것만 처리하므로 수동 호출)
-	if (m_imageNormal) m_imageNormal->Update();
-	if (m_imageHover) m_imageHover->Update();
-	if (m_imagePressed) m_imagePressed->Update();
-	if (m_imageClicked) m_imageClicked->Update();
+	// 즉시 로그 출력 (함수 진입 확인용)
+	ALICE_LOG_INFO("[UIButton] Update called: ID=%lu, deltaTime=%f", ID, deltaTime);
+	
+	// #region agent log
+	FILE* logFile = fopen("d:\\4Q\\4q__AliceRenderer\\.cursor\\debug.log", "a");
+	if (logFile) {
+		fprintf(logFile, "{\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"A\",\"location\":\"UIButton.cpp:56\",\"message\":\"UIButton::Update called\",\"data\":{\"buttonID\":%lu,\"m_input\":%p,\"bIsHovered\":%d,\"bIsPressed\":%d,\"m_prevIsHovered\":%d,\"m_prevIsPressed\":%d},\"timestamp\":%lld}\n",
+			ID, m_input, m_input ? m_input->bIsHovered : -1, m_input ? m_input->bIsPressed : -1, m_prevIsHovered ? 1 : 0, m_prevIsPressed ? 1 : 0, (long long)time(nullptr) * 1000);
+		fclose(logFile);
+	}
+	// #endregion agent log
+
+	if (!m_input) 
+	{
+		ALICE_LOG_WARN("[UIButton] Update early return: m_input is null, ID=%lu", ID);
+		return;
+	}
+
+	// 현재 상태 확인
+	bool isPressed = m_input->bIsPressed;
+	bool isHovered = m_input->bIsHovered;
+
+	// #region agent log
+	logFile = fopen("d:\\4Q\\4q__AliceRenderer\\.cursor\\debug.log", "a");
+	if (logFile) {
+		fprintf(logFile, "{\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"B\",\"location\":\"UIButton.cpp:65\",\"message\":\"UIButton::Update state check\",\"data\":{\"buttonID\":%lu,\"isHovered\":%d,\"isPressed\":%d,\"stateChanged\":%d},\"timestamp\":%lld}\n",
+			ID, isHovered ? 1 : 0, isPressed ? 1 : 0, ((isPressed != m_prevIsPressed || isHovered != m_prevIsHovered) ? 1 : 0), (long long)time(nullptr) * 1000);
+		fclose(logFile);
+	}
+	// #endregion agent log
+
+	// 상태 변경 시에만 업데이트
+	if (isPressed != m_prevIsPressed || isHovered != m_prevIsHovered)
+	{
+		// #region agent log
+		logFile = fopen("d:\\4Q\\4q__AliceRenderer\\.cursor\\debug.log", "a");
+		if (logFile) {
+			fprintf(logFile, "{\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"F\",\"location\":\"UIButton.cpp:85\",\"message\":\"UIButton::Update state changed\",\"data\":{\"buttonID\":%lu,\"isHovered\":%d,\"isPressed\":%d,\"m_imgNormal\":%p,\"m_imgHover\":%p},\"timestamp\":%lld}\n",
+				ID, isHovered ? 1 : 0, isPressed ? 1 : 0, m_imgNormal, m_imgHover, (long long)time(nullptr) * 1000);
+			fclose(logFile);
+		}
+		// #endregion agent log
+
+		// 상태 우선순위: Pressed > Hover > Normal
+		if (isPressed)
+		{
+			// Pressed 상태
+			if (m_imgPressed) m_imgPressed->GetTransform().m_scale = DirectX::XMFLOAT2(1.0f, 1.0f);
+			if (m_imgHover) m_imgHover->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+			if (m_imgNormal) m_imgNormal->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+			if (m_imgClicked) m_imgClicked->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+		}
+		else if (isHovered)
+		{
+			// Hover 상태
+			if (m_imgHover) 
+			{
+				m_imgHover->GetTransform().m_scale = DirectX::XMFLOAT2(1.0f, 1.0f);
+				// #region agent log
+				logFile = fopen("d:\\4Q\\4q__AliceRenderer\\.cursor\\debug.log", "a");
+				if (logFile) {
+					fprintf(logFile, "{\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"G\",\"location\":\"UIButton.cpp:99\",\"message\":\"UIButton::Update set hover scale\",\"data\":{\"buttonID\":%lu,\"hoverScaleX\":%f,\"hoverScaleY\":%f},\"timestamp\":%lld}\n",
+						ID, m_imgHover->GetTransform().m_scale.x, m_imgHover->GetTransform().m_scale.y, (long long)time(nullptr) * 1000);
+					fclose(logFile);
+				}
+				// #endregion agent log
+			}
+			if (m_imgNormal) m_imgNormal->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+			if (m_imgPressed) m_imgPressed->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+			if (m_imgClicked) m_imgClicked->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+		}
+		else
+		{
+			// Normal 상태
+			if (m_imgNormal) m_imgNormal->GetTransform().m_scale = DirectX::XMFLOAT2(1.0f, 1.0f);
+			if (m_imgHover) m_imgHover->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+			if (m_imgPressed) m_imgPressed->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+			if (m_imgClicked) m_imgClicked->GetTransform().m_scale = DirectX::XMFLOAT2(0.0f, 0.0f);
+		}
+
+		m_prevIsPressed = isPressed;
+		m_prevIsHovered = isHovered;
+	}
 }
 
 void UIButton::UpdateInput(UIWorld& world, Alice::InputSystem& input)
 {
+	ALICE_LOG_INFO("[UIButton] UpdateInput called: buttonID=%lu, m_input=%p", ID, m_input);
+	
 	if (m_input)
 	{
+		bool beforeHovered = m_input->bIsHovered;
+		bool beforePressed = m_input->bIsPressed;
+		bool hadOnClicked = static_cast<bool>(m_input->OnClicked);
+		
+		ALICE_LOG_INFO("[UIButton] UpdateInput: Before Update - hovered=%d, pressed=%d, OnClicked valid=%d", 
+			beforeHovered ? 1 : 0, beforePressed ? 1 : 0, hadOnClicked ? 1 : 0);
+		
 		m_input->Update(world, input);
+		
+		bool afterHovered = m_input->bIsHovered;
+		bool afterPressed = m_input->bIsPressed;
+		
+		ALICE_LOG_INFO("[UIButton] UpdateInput: After Update - hovered=%d, pressed=%d", 
+			afterHovered ? 1 : 0, afterPressed ? 1 : 0);
+	}
+	else
+	{
+		ALICE_LOG_WARN("[UIButton] UpdateInput: m_input is null! buttonID=%lu", ID);
 	}
 }
 
 void UIButton::Render()
 {
-	// 현재 상태에 따라 적절한 이미지 렌더링
-	UI_ImageComponent* currentImage = GetCurrentImage();
-	if (currentImage)
-	{
-		currentImage->Render();
-	}
+	// 자식 UIImage는 UIWorld 트리 렌더에서 그려지므로 여기서는 아무것도 하지 않음
+}
+
+void UIButton::SetupParts(UIImage* normal, UIImage* hover, UIImage* pressed, UIImage* clicked)
+{
+	m_imgNormal = normal;
+	m_imgHover = hover;
+	m_imgPressed = pressed;
+	m_imgClicked = clicked;
 }
 
 void UIButton::SetNormalImage(const std::wstring& path)
 {
-	if (m_imageNormal)
+	if (m_imgNormal)
 	{
-		m_imageNormal->SetImagePath(path);
+		m_imgNormal->createImage(path);
 	}
 }
 
 void UIButton::SetHoverImage(const std::wstring& path)
 {
-	if (m_imageHover)
+	if (m_imgHover)
 	{
-		m_imageHover->SetImagePath(path);
+		m_imgHover->createImage(path);
 	}
 }
 
 void UIButton::SetPressedImage(const std::wstring& path)
 {
-	if (m_imagePressed)
+	if (m_imgPressed)
 	{
-		m_imagePressed->SetImagePath(path);
+		m_imgPressed->createImage(path);
 	}
 }
 
 void UIButton::SetClickedImage(const std::wstring& path)
 {
-	if (m_imageClicked)
+	if (m_imgClicked)
 	{
-		m_imageClicked->SetImagePath(path);
+		m_imgClicked->createImage(path);
 	}
 }
 
@@ -164,30 +248,29 @@ void UIButton::SetOnReleased(std::function<void()> callback)
 
 void UIButton::SetOnClicked(std::function<void()> callback)
 {
+	ALICE_LOG_INFO("[UIButton] SetOnClicked called - buttonID=%lu, m_input=%p, callback valid=%d", 
+		ID, m_input, callback ? 1 : 0);
+	
 	if (m_input)
 	{
+		// 이전 콜백이 있었는지 확인
+		bool hadPreviousCallback = static_cast<bool>(m_input->OnClicked);
+		
 		m_input->OnClicked = callback;
-	}
-}
-
-UI_ImageComponent* UIButton::GetCurrentImage() const
-{
-	if (!m_input)
-	{
-		return m_imageNormal;
-	}
-
-	// 상태에 따라 적절한 이미지 반환
-	if (m_input->bIsPressed)
-	{
-		return m_imagePressed ? m_imagePressed : m_imageNormal;
-	}
-	else if (m_input->bIsHovered)
-	{
-		return m_imageHover ? m_imageHover : m_imageNormal;
+		
+		// 바인딩 검증: 콜백이 제대로 설정되었는지 확인
+		bool callbackSet = static_cast<bool>(m_input->OnClicked);
+		ALICE_LOG_INFO("[UIButton] SetOnClicked: callback set=%d (hadPrevious=%d)", 
+			callbackSet ? 1 : 0, hadPreviousCallback ? 1 : 0);
+		
+		if (!callbackSet && callback)
+		{
+			ALICE_LOG_WARN("[UIButton] SetOnClicked: WARNING - callback was provided but not set! (DLL boundary issue?)");
+		}
 	}
 	else
 	{
-		return m_imageNormal;
+		ALICE_LOG_WARN("[UIButton] SetOnClicked: m_input is null! (InputComponent not initialized)");
 	}
 }
+

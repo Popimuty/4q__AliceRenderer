@@ -89,7 +89,9 @@ namespace Alice
     public:
         ID3D11Device* m_d3dDev{ nullptr };
         void Initalize(ID3D11Device* pDev, ID3D11DeviceContext* pDevCon, UINT w, UINT h, Alice::InputSystem& tmpInput);
-        void Update(UINT w, UINT h);
+        void Update(UINT w, UINT h, bool editorMode = false);
+        // 뷰포트 정보 설정 (실제 그려지는 화면 영역)
+        void SetViewport(float viewportX, float viewportY, float viewportWidth, float viewportHeight);
         void Render();
 
         //씬 매니저 선택/생성만 수행 (side-effect 없음)
@@ -127,4 +129,7 @@ namespace Alice
         
         // UI 리소스 강제 복구 (m_path는 있지만 m_texture가 null인 경우)
         void EnsureAllUIResources();
+        
+        // 모든 UI_ImageComponent의 기본 색상 설정 (이미지가 없을 때 사용할 색상)
+        void SetFallbackColorForAllImages(const D2D1::ColorF& color);
     };

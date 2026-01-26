@@ -31,24 +31,47 @@ void UITransform::Reset()
 
 void UITransform::LocalMat(D2D1::Matrix3x2F& m_localTrans)
 {
-
+	// pivot center 인자 제거: Scale/Rotation은 pivot 없이 계산
+	// pivot 보정은 렌더 단계에서 Rect 오프셋으로 처리
 	m_localTrans =
-		D2D1::Matrix3x2F::Scale(m_scale.x, m_scale.y, D2D1::Point2F(m_pivot.x, m_pivot.y)) *
-		D2D1::Matrix3x2F::Rotation(m_rotation, D2D1::Point2F(m_pivot.x, m_pivot.y)) *
+		D2D1::Matrix3x2F::Scale(m_scale.x, m_scale.y) *
+		D2D1::Matrix3x2F::Rotation(m_rotation) *
 		D2D1::Matrix3x2F::Translation(m_translation.x, m_translation.y);
 }
 
 
 D2D1::Matrix3x2F UITransform::WorldMatrix(const D2D1::Matrix3x2F& WorldMat)
 {
-
 	D2D1::Matrix3x2F LocalMatrix;
 	LocalMat(LocalMatrix);
 	m_worldTrans = LocalMatrix * WorldMat;
 
+	// Unity 좌표계 기준 역행렬 계산
 	m_invWorldTrans = m_worldTrans;
+	BOOL invertSuccess = m_invWorldTrans.Invert();
+	if (!invertSuccess)
+	{
+		// 역행렬 계산 실패 시 Identity로 초기화
+		m_invWorldTrans = D2D1::Matrix3x2F::Identity();
+	}
 
-	m_invWorldTrans.Invert();
+	// D2D 좌표계 변환 행렬 계산 (ConVertD2DPos의 역행렬용)
+	// toD2D = Scale(1,-1) * Translation(w/2,h/2) (한 번만 적용)
+	D2D1::Matrix3x2F toD2D =
+		D2D1::Matrix3x2F::Scale(1.0f, -1.0f) *
+		D2D1::Matrix3x2F::Translation(
+			m_screenSize.x * 0.5f,
+			m_screenSize.y * 0.5f
+		);
+
+	D2D1::Matrix3x2F d2dTransform = m_worldTrans * toD2D;
+	m_invD2DTrans = d2dTransform;
+	invertSuccess = m_invD2DTrans.Invert();
+	if (!invertSuccess)
+	{
+		// 역행렬 계산 실패 시 Identity로 초기화
+		m_invD2DTrans = D2D1::Matrix3x2F::Identity();
+	}
 
 	return m_worldTrans;
 }
@@ -56,17 +79,16 @@ D2D1::Matrix3x2F UITransform::WorldMatrix(const D2D1::Matrix3x2F& WorldMat)
 
 // 유니티 -> D2D  : Render용 좌표 계산
 D2D1::Matrix3x2F UITransform::ConVertD2DPos() {
-	// 현재 좌표  + 화면 크리 /2
-
-	D2D1::Matrix3x2F tmpMat =
+	// Unity 좌표계 -> D2D 좌표계 변환: Y-flip + 화면 중앙 이동
+	// toD2D = Scale(1,-1) * Translation(w/2,h/2) (한 번만 적용)
+	D2D1::Matrix3x2F toD2D =
 		D2D1::Matrix3x2F::Scale(1.0f, -1.0f) *
 		D2D1::Matrix3x2F::Translation(
 			m_screenSize.x * 0.5f,
 			m_screenSize.y * 0.5f
 		);
 
-
-	return  D2D1::Matrix3x2F::Scale(1.0f, -1.0f) * (m_worldTrans)*tmpMat;
+	return m_worldTrans * toD2D;
 }
 
 

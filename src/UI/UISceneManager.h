@@ -11,6 +11,7 @@
 #include <dxgi1_2.h>
 #include <d2d1_1.h>
 #include <dwrite.h>
+#include <utility>
 //#include "UIComponent/UITransformClass.h"
 #include "IUIComponent.h"
 #include "UIRenderStruct.h"
@@ -25,6 +26,7 @@
 #include "UI_ScriptComponent.h"
 #include "UIScriptSystem.h"
 #include "UIImage.h"
+#include "UIButton.h"
 #include "UIGaugeBar.h"
 #include "Core/Logger.h"
 
@@ -87,6 +89,10 @@ private:
 	// UI Script 저장소 (여러 스크립트 지원, World의 m_scripts와 유사)
 	std::unordered_map<unsigned long, std::vector<UIScriptEntry>> m_scripts; // UI Script 저장소
 
+	// 이름 레지스트리 (양방향 매핑)
+	std::unordered_map<unsigned long, std::string> m_idToName;      // ID -> Name
+	std::unordered_map<std::string, unsigned long> m_nameToId;      // Name -> ID
+
 	// 공통 델리게이트: 컴포넌트 생성/조회/삭제를 위임하는 델리게이트
 	CompDelegates m_worldDelegates{};
 
@@ -112,8 +118,12 @@ public:
 		requires std::derived_from<T, UIBase>
 	T* CreateChildEntity(long unsigned parentID, Args&&... args);
 
+	// 템플릿 특수화 선언 (명시적 선언으로 링크 보장)
 	template<>
-	inline UIGaugeBar* CreateEntity<UIGaugeBar>();
+	UIGaugeBar* CreateEntity<UIGaugeBar>();
+	
+	template<>
+	UIButton* CreateEntity<UIButton>();
 
 	// UI 엔티티 삭제 (자식까지 전체 삭제 포함)
 	bool DestroyEntity(long unsigned int handle);
@@ -121,6 +131,19 @@ public:
 	// UI 엔티티 조회
 	UIBase* Get(long unsigned int handle);
 	const UIBase* Get(long unsigned int handle) const;
+
+	// ----- 이름 기반 조회 -----
+	// 이름 등록 (중복 시 자동 유니크화)
+	bool RegisterName(unsigned long id, const std::string& name);
+	// 이름 변경
+	bool Rename(unsigned long id, const std::string& newName);
+	// ID로 이름 조회
+	const std::string* GetNameById(unsigned long id) const;
+	// 이름으로 ID 조회 (없으면 0)
+	unsigned long GetIdByName(const std::string& name) const;
+	// 이름으로 UIBase 조회
+	UIBase* GetByName(const std::string& name);
+	const UIBase* GetByName(const std::string& name) const;
 
 	// 전체 월드 클리어
 	void Clear();
@@ -237,6 +260,7 @@ public:
 
 private:
 	static void UpdateTransformChild(UIWorld& world, UIBase* node, const D2D1::Matrix3x2F& parentWorld);
+	static void UpdateUIChild(UIWorld& world, UIBase* node, float deltaTime);
 };
 
 // ============================================================================
@@ -258,7 +282,18 @@ private:
 class UIEventSystem
 {
 public:
-	static void UpdatePointer(UIWorld& world, Alice::InputSystem* inputSystem, UIRenderStruct* renderStruct);
+	// 마우스 클릭/드래그 이벤트 처리
+	// viewportWidth, viewportHeight: UI 좌표 변환용 (UIWorldManager에서 전달)
+	// editorMode: 사용되지 않음 (호환성을 위해 유지)
+	static void UpdateMouseEvents(UIWorld& world, Alice::InputSystem* inputSystem, UIRenderStruct* renderStruct, 
+		UINT viewportWidth, UINT viewportHeight, bool editorMode = false);
+
+private:
+	// 드래그 시작 임계값 (픽셀)
+	static constexpr float DRAG_THRESHOLD = 5.0f;
+	
+	// 두 점 사이의 거리 계산
+	static float Distance(const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b);
 };
 
 // ============================================================================
@@ -347,12 +382,14 @@ public:
 
 	// ----- UI 엔티티 생성/조회 (외부 호출용) -----
 	template<typename T, typename... Args>
-		requires std::derived_from<T, UIBase>
-	T* CreateUIObjects(Args&&... args) { return m_world.CreateEntity<T>(std::forward<Args>(args)...); }
+	T* CreateUIObjects(Args&&... args) requires std::derived_from<T, UIBase>
+	{ 
+		return m_world.CreateEntity<T>(std::forward<Args>(args)...); 
+	}
 
 	template<typename T, typename... Args>
-		requires std::derived_from<T, UIBase>
-	T* CreateChildUIObjects(long unsigned parentID, Args&&... args) { return m_world.CreateChildEntity<T>(parentID, std::forward<Args>(args)...); }
+	T* CreateChildUIObjects(long unsigned parentID, Args&&... args) requires std::derived_from<T, UIBase> 
+	{ return m_world.CreateChildEntity<T>(parentID, std::forward<Args>(args)...); }
 
 	UIBase* Get(long unsigned int ID) { return m_world.Get(ID); }
 	bool DeleteUIObjects(long unsigned int ID) { return m_world.DestroyEntity(ID); }
@@ -392,12 +429,23 @@ T* UIWorld::CreateEntity(Args&&... args)
 {
 	assert(m_UIRenderStruct && "UIWorld::Initialize() must be called before CreateEntity");
 
+	// 일반 템플릿 사용 확인 (UIButton이면 특수화가 호출되어야 함)
+	const char* typeName = typeid(T).name();
+	ALICE_LOG_INFO("[UIWorld] CreateEntity<T> called (일반 템플릿): type=%s", typeName);
+
 	auto pUIObj = std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 	T* ObjPtr = pUIObj.get();
-	ObjPtr->SetID(this->nowInteger);
+	long unsigned entityID = this->nowInteger;
+	ObjPtr->SetID(entityID);
 
-	pUIObjStorage.emplace(this->nowInteger, std::move(pUIObj));
-	m_rootID.push_back(this->nowInteger); // 루트 추가
+	pUIObjStorage.emplace(entityID, std::move(pUIObj));
+	m_rootID.push_back(entityID); // 루트 추가
+	
+	// 이름 자동 등록 (기본값: "UI_<ID>")
+	std::string defaultName = "UI_" + std::to_string(entityID);
+	RegisterName(entityID, defaultName);
+	ObjPtr->SetName(defaultName);
+	
 	this->nowInteger++;
 
 	ObjPtr->Initalize(*m_UIRenderStruct, m_worldDelegates);
@@ -412,22 +460,50 @@ T* UIWorld::CreateChildEntity(long unsigned parentID, Args&&... args)
 {
 	assert(m_UIRenderStruct && "UIWorld::Initialize() must be called before CreateChildEntity");
 
+	const char* typeName = typeid(T).name();
+	ALICE_LOG_INFO("[UIWorld] CreateChildEntity<T> called: parentID=%lu, type=%s", parentID, typeName);
+
 	auto pUIObj = std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-	pUIObj->ID = this->nowInteger++; // ID 할당 후 ID++
+	long unsigned childID = this->nowInteger++; // 새 ID 발급
+	pUIObj->ID = childID;
+
+	ALICE_LOG_INFO("[UIWorld] CreateChildEntity: childID=%lu assigned (parentID=%lu)", childID, parentID);
+	
+	// 이름 자동 등록 (기본값: "UI_<ID>")
+	std::string defaultName = "UI_" + std::to_string(childID);
+	RegisterName(childID, defaultName);
+	pUIObj->SetName(defaultName);
 
 	UIBase* parentNode = Get(parentID);
 	assert(parentNode && "CreateChildEntity: parentNode must not be null");
 
 	// 부모 연결
-	parentNode->childIDStorage.push_back(pUIObj->ID);
+	parentNode->childIDStorage.push_back(childID);
 	pUIObj->parentID = parentID;
 
 	// child가 root에 포함되지 않도록 확인 (이미 parent가 있으므로 root가 아님)
 	// m_rootID에서 제거 (혹시 모를 경우 대비)
-	m_rootID.erase(std::remove(m_rootID.begin(), m_rootID.end(), pUIObj->ID), m_rootID.end());
+	auto it = std::find(m_rootID.begin(), m_rootID.end(), childID);
+	if (it != m_rootID.end())
+	{
+		ALICE_LOG_WARN("[UIWorld] CreateChildEntity: childID=%lu was in m_rootID, removing it", childID);
+		m_rootID.erase(it);
+	}
 
 	T* ObjPtr = pUIObj.get();
-	pUIObjStorage.emplace(pUIObj->ID, std::move(pUIObj));
+	
+	// emplace 전에 중복 확인 (ID 충돌 방지)
+	if (pUIObjStorage.find(childID) != pUIObjStorage.end())
+	{
+		
+		assert(false && "CreateChildEntity: ID collision detected");
+		return nullptr;
+	}
+	
+	pUIObjStorage.emplace(childID, std::move(pUIObj));
+
+	ALICE_LOG_INFO("[UIWorld] CreateChildEntity: child stored successfully - childID=%lu, parentID=%lu, type=%s", 
+		childID, parentID, typeName);
 
 	// 자식도 초기화
 	ObjPtr->Initalize(*m_UIRenderStruct, m_worldDelegates);

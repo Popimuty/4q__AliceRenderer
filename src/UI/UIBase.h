@@ -37,11 +37,15 @@ class UIBase
     friend class UIImageSystem;
     friend class UIScriptSystem;
     friend class UIInputSystem;
+    friend class UI_InputComponent;
 protected:
     UIBase() = default;
 
 public:
     virtual ~UIBase() = default;
+
+    // 타입 이름 반환 (JSON 저장/로드용 고정 문자열)
+    virtual const char* GetTypeName() const = 0;
 
     // Transform은 엔티티 생성 직후 1회 AddComponent로 보장되고, 캐시로 접근한다.
     UITransform* Transform = nullptr;
@@ -51,6 +55,9 @@ public:
         return *Transform;
     }
 
+    // UIRenderStruct 접근자 (컴포넌트에서 뷰포트 정보 접근용)
+    UIRenderStruct* GetRenderStruct() const { return m_UIRenderStruct; }
+
     // World 쪽에서 넘겨주는 CompDelegates 를 통해 컴포넌트 생성/조회/삭제를 위임
     virtual void Initalize(UIRenderStruct& UIRenderStruct, CompDelegates& worldDelegates);
     virtual void Update(float deltaTime) = 0;
@@ -58,6 +65,11 @@ public:
 
     long unsigned int getID() { return ID; }
     UIState m_uiState{ UIState::Normal };
+    
+    // 이름 관리
+    std::string m_name;
+    const std::string& GetName() const { return m_name; }
+    void SetName(const std::string& name) { m_name = name; } // 실제 등록/유효성 관리는 World에서 처리
     
     // 직렬화를 위한 접근자 (ID 기반 저장/로드용)
     long unsigned int GetParentID() const { return parentID; }

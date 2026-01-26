@@ -1,19 +1,26 @@
 #pragma once
 
 #include <string>
+#include <rttr/rttr_enable.h>  // RTTR_ENABLE 매크로
 
 class UIBase;
 class UI_ImageComponent;
+class UIWorld;
 
 /// UI 전용 스크립트 베이스 인터페이스
 class IUIScript
 {
+public:
+	RTTR_ENABLE()  // RTTR 상속 정보 등록 (MyUIScript에서 RTTR_ENABLE(IUIScript) 사용 가능하게 함)
 public:
 	virtual ~IUIScript() = default;
 
 	/// 스크립트가 붙은 UI의 정보
 	UIBase* Owner{ nullptr };
 	unsigned long OwnerID{ 0 };
+	
+	/// UIWorld 포인터 (이름 기반 조회용)
+	UIWorld* World{ nullptr };
 
 	/// UI_ScriptComponent가 추가될 때 1회 호출
 	virtual void OnAdded(UIBase& /*owner*/) {}

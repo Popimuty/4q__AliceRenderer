@@ -284,8 +284,12 @@ namespace Alice
         void LoadScene(World& );
 
 
-		// UI
+		// UI 생성
         void CreateUIImage();
+		void CreateUIButton();
+		void CreateUIGauageBar();
+
+		// UI Editor 
 		void RenderUIHeirarcy();
 		void DrawUIInspector(UISceneManager& manager, UIWorld& uiWorld, unsigned long uiEntityID);
 

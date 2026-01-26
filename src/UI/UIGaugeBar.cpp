@@ -8,6 +8,8 @@ void UIGaugeBar::SetupParts(UIImage* bgi, UIImage* fi, UIImage* ldi, UIImage* lu
     lerpUpImage = lui;
 
     // SetupParts 호출 시점에도 pivot 설정 (Initalize보다 먼저 호출될 수 있음)
+    if (backGroundImage)
+        backGroundImage->GetTransform().SetPivot(0.0f, 0.5f);
     if (FillImage)
         FillImage->GetTransform().SetPivot(0.0f, 0.5f);
     if (lerpDownImage)
@@ -101,5 +103,23 @@ void UIGaugeBar::Initalize(UIRenderStruct& rs, CompDelegates& worldDelegates)
     lerpUpImage->GetTransform().SetPivot(0.0f, 0.5f);
 
     // 초기 scale 설정 (게이지 값에 맞춰)
+    UpdateScaleFromValue();
+}
+
+void UIGaugeBar::SetNormalized(float t01)
+{
+    // 값 클램프
+    float clamped = std::clamp(t01, 0.0f, 1.0f);
+    
+    // target과 current를 모두 설정 (즉시 반영)
+    m_target = clamped;
+    m_current = clamped;
+    m_prevTarget = clamped;
+    
+    // lerp 값들도 동기화
+    m_lerpDown = clamped;
+    m_lerpUp = clamped;
+    
+    // 즉시 scale 반영
     UpdateScaleFromValue();
 }

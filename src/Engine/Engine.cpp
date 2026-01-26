@@ -863,7 +863,16 @@ namespace Alice
 		// - updateFromScene에서는 위에서 처리
 		
 		// 5. UI 업데이트
-		pImpl->m_uiWorld.Update(pImpl->m_width, pImpl->m_height);
+		// 뷰포트 정보 설정
+		// - 에디터 모드: EditorCore에서 ImGui "Game" 창의 실제 렌더링 영역을 계산하여 SetViewport 호출
+		// - 게임 모드: 전체 윈도우를 뷰포트로 사용
+		if (!pImpl->m_editorMode)
+		{
+			// 게임 모드: 전체 윈도우를 뷰포트로 사용
+			pImpl->m_uiWorld.SetViewport(0.0f, 0.0f, static_cast<float>(pImpl->m_width), static_cast<float>(pImpl->m_height));
+		}
+		// 에디터 모드는 EditorCore에서 ImGui Image 영역을 기준으로 SetViewport 호출
+		pImpl->m_uiWorld.Update(pImpl->m_width, pImpl->m_height, pImpl->m_editorMode);
 
 	}
 

@@ -28,6 +28,11 @@ public:
     std::function<void()> OnPressed;
     std::function<void()> OnReleased;
     std::function<void()> OnClicked;
+    
+    // 드래그 이벤트 콜백
+    std::function<void(const DirectX::XMFLOAT2& startPos)> OnDragBegin;
+    std::function<void(const DirectX::XMFLOAT2& deltaPos, const DirectX::XMFLOAT2& currentPos)> OnDrag;
+    std::function<void(const DirectX::XMFLOAT2& endPos)> OnDragEnd;
 
     // Update 호출 (UIWorld와 InputSystem을 받아서 처리)
     void Update(UIWorld& world, Alice::InputSystem& input);

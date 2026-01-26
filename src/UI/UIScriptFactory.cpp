@@ -17,7 +17,7 @@ void UIScriptFactory::Register(const char* name, UIScriptCreateFunc func)
         //ALICE_LOG_WARN("[UIScriptFactory::Register] Invalid name or func!");
         return;
     }
-
+    
     auto& registry = GetRegistry();
     registry[name] = func;
     //ALICE_LOG_INFO("[UIScriptFactory::Register] Registered UI script: %s", name);

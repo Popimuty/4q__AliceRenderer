@@ -1,7 +1,7 @@
 #pragma once
 #include "UIBase.h"
 #include "UI_InputComponent.h"
-#include "UI_ImageComponent.h"
+#include "UIImage.h"
 #include <DirectXMath.h>
 
 
@@ -10,11 +10,16 @@ class UIButton : public UIBase
 {
 public:
 	UIButton();
-	~UIButton();
+	virtual ~UIButton() override;
+	
+	const char* GetTypeName() const override { return "UIButton"; }
 
 	void Initalize(UIRenderStruct& UIRenderStruct, CompDelegates& tmpDelegate) override;
 	void Update(float deltaTime) override;
 	void Render() override;
+
+	// 자식 UIImage 연결
+	void SetupParts(UIImage* normal, UIImage* hover, UIImage* pressed, UIImage* clicked);
 
 	// 이미지 경로 설정
 	void SetNormalImage(const std::wstring& path);
@@ -40,12 +45,13 @@ private:
 	// InputComponent (멤버로 직접 관리)
 	UI_InputComponent* m_input = nullptr;
 
-	// ImageComponent 4개 (멤버로 직접 관리, 벡터 아님)
-	UI_ImageComponent* m_imageNormal = nullptr;    // 일반 상태
-	UI_ImageComponent* m_imageHover = nullptr;     // 호버 상태
-	UI_ImageComponent* m_imagePressed = nullptr;   // 눌림 상태
-	UI_ImageComponent* m_imageClicked = nullptr;    // 클릭 상태
+	// 자식 UIImage 4개 참조
+	UIImage* m_imgNormal = nullptr;
+	UIImage* m_imgHover = nullptr;
+	UIImage* m_imgPressed = nullptr;
+	UIImage* m_imgClicked = nullptr;
 
-	// 현재 렌더링할 이미지 결정
-	UI_ImageComponent* GetCurrentImage() const;
+	// 이전 상태 추적 (상태 변경 시에만 업데이트)
+	bool m_prevIsPressed = false;
+	bool m_prevIsHovered = false;
 };

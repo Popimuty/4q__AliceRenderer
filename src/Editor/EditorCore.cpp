@@ -69,6 +69,8 @@
 #include "UI/UIWorldManager.h"
 #include "UI/UISceneManager.h"
 #include "UI/UIImage.h"
+#include "UI/UIButton.h"
+#include "UI/UIGaugeBar.h"
 #include "UI/UIScriptSystem.h"
 #include "UI/UI_ScriptComponent.h"
 
@@ -1148,7 +1150,7 @@ namespace Alice
 			}
 		}
 
-		bool ReloadScripts_FromButton(World& world)
+		bool ReloadScripts_FromButton(World& world, UIWorldManager* uiWorldManager = nullptr)
 		{
 			using namespace std::filesystem;
 
@@ -1241,41 +1243,219 @@ namespace Alice
 				}
 			}
 
-			// 기존 DLL을 언로드하기 전에, 기존 스크립트 인스턴스(가상 함수)가 남아있으면 크래시가 납니다.
-			// - 값은 스냅샷 후 새 DLL 로드 뒤에 다시 주입합니다.
-			std::vector<EntityReloadSnap> snaps;
-			SnapshotAndDestroyScripts(world, snaps);
+		// 기존 DLL을 언로드하기 전에, 기존 스크립트 인스턴스(가상 함수)가 남아있으면 크래시가 납니다.
+		// - 값은 스냅샷 후 새 DLL 로드 뒤에 다시 주입합니다.
+		std::vector<EntityReloadSnap> snaps;
+		SnapshotAndDestroyScripts(world, snaps);
 
-			ScriptHotReload_Unload();
-
-			path targetDll = exeDir / "AliceScripts.dll";
-			std::error_code ecCopy;
-			copy_file(builtDll, targetDll,
-				copy_options::overwrite_existing,
-				ecCopy);
-			if (ecCopy)
-			{
-				ALICE_LOG_ERRORF("Reload Scripts: failed to copy DLL from \"%s\" to \"%s\" (%s)",
-					builtDll.string().c_str(),
-					targetDll.string().c_str(),
-					ecCopy.message().c_str());
-				return false;
+		// UI 스크립트 인스턴스도 삭제 (DLL 언로드 전에 필수)
+		ALICE_LOG_INFO("Reload Scripts: Starting UI script cleanup...");
+		if (uiWorldManager)
+		{
+			ALICE_LOG_INFO("Reload Scripts: uiWorldManager is valid");
+			try {
+				// GetManager()는 참조를 반환하므로, 내부적으로 nullptr 체크가 필요할 수 있음
+				// 안전하게 접근하기 위해 try-catch로 보호
+				ALICE_LOG_INFO("Reload Scripts: Calling GetManager()...");
+				UISceneManager* uiManagerPtr = nullptr;
+				try {
+					UISceneManager& uiManager = uiWorldManager->GetManager();
+					uiManagerPtr = &uiManager;
+					ALICE_LOG_INFO("Reload Scripts: GetManager() succeeded");
+				}
+				catch (...)
+				{
+					ALICE_LOG_WARN("Reload Scripts: GetManager() threw exception (m_nowManager may be nullptr)");
+					uiManagerPtr = nullptr;
+				}
+				
+				if (uiManagerPtr)
+				{
+					UIWorld& uiWorld = uiManagerPtr->GetWorld();
+					ALICE_LOG_INFO("Reload Scripts: GetWorld() succeeded");
+					
+					auto& allUIScripts = uiWorld.GetAllUIScriptsInWorld();
+					ALICE_LOG_INFO("Reload Scripts: GetAllUIScriptsInWorld() succeeded, count: %zu", allUIScripts.size());
+					
+					size_t totalScripts = 0;
+					for (auto& [ownerID, scriptList] : allUIScripts)
+					{
+						ALICE_LOG_INFO("Reload Scripts: Processing ownerID: %lu, script count: %zu", ownerID, scriptList.size());
+						for (size_t i = 0; i < scriptList.size(); ++i)
+						{
+							auto& entry = scriptList[i];
+							ALICE_LOG_INFO("Reload Scripts: Processing script[%zu]: name=%s, hasInstance=%d", 
+								i, entry.scriptName.c_str(), entry.instance ? 1 : 0);
+							
+							// DLL이 살아있는 동안 가상함수 호출해서 정리
+							if (entry.instance)
+							{
+								ALICE_LOG_INFO("Reload Scripts: Calling OnRemoved() for script: %s", entry.scriptName.c_str());
+								try {
+									entry.instance->OnRemoved();
+									ALICE_LOG_INFO("Reload Scripts: OnRemoved() succeeded");
+								}
+								catch (...)
+								{
+									ALICE_LOG_WARN("Reload Scripts: OnRemoved() threw exception for script: %s", entry.scriptName.c_str());
+								}
+								
+								ALICE_LOG_INFO("Reload Scripts: Resetting instance for script: %s", entry.scriptName.c_str());
+								entry.instance.reset();
+								ALICE_LOG_INFO("Reload Scripts: Instance reset succeeded");
+							}
+							
+							// 전체 초기화: 인스턴스 삭제 및 플래그 리셋 (스크립트 이름은 유지)
+							entry.awoken = false;
+							entry.started = false;
+							// entry.scriptName은 유지 (재생성 시 사용)
+							totalScripts++;
+						}
+					}
+					
+					ALICE_LOG_INFO("Reload Scripts: destroyed all UI script instances (total: %zu), script names preserved for recreation", totalScripts);
+				}
+				else
+				{
+					ALICE_LOG_WARN("Reload Scripts: GetManager() returned invalid reference, skipping UI script cleanup");
+				}
 			}
+			catch (const std::exception& e)
+			{
+				//ALICE_LOG_ERROR("Reload Scripts: exception in UI script cleanup: %s", e.what());
+			}
+			catch (...)
+			{
+				ALICE_LOG_WARN("Reload Scripts: failed to destroy UI script instances (UI manager may not be initialized)");
+			}
+		}
+		else
+		{
+			ALICE_LOG_INFO("Reload Scripts: uiWorldManager is nullptr, skipping UI script cleanup");
+		}
+		ALICE_LOG_INFO("Reload Scripts: UI script cleanup completed");
 
-			ALICE_LOG_INFO("Reload Scripts: copied \"%s\" -> \"%s\"",
+		ALICE_LOG_INFO("Reload Scripts: About to call ScriptHotReload_Unload()...");
+		ScriptHotReload_Unload();
+		ALICE_LOG_INFO("Reload Scripts: ScriptHotReload_Unload() completed");
+
+		ALICE_LOG_INFO("Reload Scripts: About to copy DLL...");
+		path targetDll = exeDir / "AliceScripts.dll";
+		std::error_code ecCopy;
+		copy_file(builtDll, targetDll,
+			copy_options::overwrite_existing,
+			ecCopy);
+		if (ecCopy)
+		{
+			ALICE_LOG_ERRORF("Reload Scripts: failed to copy DLL from \"%s\" to \"%s\" (%s)",
 				builtDll.string().c_str(),
-				targetDll.string().c_str());
+				targetDll.string().c_str(),
+				ecCopy.message().c_str());
+			return false;
+		}
 
-			// 6) 새 DLL 로드
-			if (!ScriptHotReload_Reload())
-			{
-				ALICE_LOG_ERRORF("Reload Scripts: ScriptHotReload_Reload() failed.");
-				return false;
+		ALICE_LOG_INFO("Reload Scripts: copied \"%s\" -> \"%s\"",
+			builtDll.string().c_str(),
+			targetDll.string().c_str());
+
+		// 6) 새 DLL 로드
+		ALICE_LOG_INFO("Reload Scripts: About to call ScriptHotReload_Reload()...");
+		if (!ScriptHotReload_Reload())
+		{
+			ALICE_LOG_ERRORF("Reload Scripts: ScriptHotReload_Reload() failed.");
+			return false;
+		}
+		ALICE_LOG_INFO("Reload Scripts: ScriptHotReload_Reload() succeeded");
+
+		// 함수 포인터 재연결 확인: GetProcAddress로 새로운 DLL 주소로 갱신되었는지 확인
+		ALICE_LOG_INFO("Reload Scripts: Verifying function pointer reconnection...");
+		// ScriptHotReload_Reload 내부에서 이미 SetFactory와 SetDynamicUIScriptFunctions를 호출하므로
+		// 여기서는 로그만 남기고, 실제 재연결은 LoadInternal에서 완료됨
+		ALICE_LOG_INFO("Reload Scripts: Function pointers reconnected (SetFactory and SetDynamicUIScriptFunctions called in LoadInternal)");
+
+		// 새 DLL의 vtable/RTTR이 준비된 뒤에 인스턴스를 다시 만듭니다.
+		ALICE_LOG_INFO("Reload Scripts: About to call RestoreScripts()...");
+		RestoreScripts(world, snaps);
+		ALICE_LOG_INFO("Reload Scripts: RestoreScripts() completed");
+
+		// 7) UI 스크립트 재생성: 모든 UI 객체를 순회하며 EnsureUIScriptInstance 호출
+		ALICE_LOG_INFO("Reload Scripts: Starting UI script recreation...");
+		if (uiWorldManager)
+		{
+			try {
+				UISceneManager* uiManagerPtr = nullptr;
+				try {
+					UISceneManager& uiManager = uiWorldManager->GetManager();
+					uiManagerPtr = &uiManager;
+				}
+				catch (...)
+				{
+					uiManagerPtr = nullptr;
+				}
+				
+				if (uiManagerPtr)
+				{
+					UIWorld& uiWorld = uiManagerPtr->GetWorld();
+					
+					// 모든 UI 객체를 순회하며 스크립트 재생성
+					// m_scripts의 각 엔트리에 대해 EnsureUIScriptInstance 호출하여 새 인스턴스 생성
+					auto& allUIScripts = uiWorld.GetAllUIScriptsInWorld();
+					size_t recreatedCount = 0;
+					
+					for (auto& [ownerID, scriptList] : allUIScripts)
+					{
+						UIBase* owner = uiWorld.Get(ownerID);
+						if (!owner)
+						{
+							ALICE_LOG_WARN("Reload Scripts: Owner not found for ownerID: %lu, skipping script recreation", ownerID);
+							continue;
+						}
+						
+						for (auto& entry : scriptList)
+						{
+							if (entry.scriptName.empty())
+							{
+								continue;
+							}
+							
+							ALICE_LOG_INFO("Reload Scripts: Recreating script '%s' for ownerID: %lu", entry.scriptName.c_str(), ownerID);
+							
+							// Reload 후 재생성을 위해 instance를 명시적으로 nullptr로 설정
+							// (reset() 후에도 안전하게 재생성하기 위해)
+							if (entry.instance)
+							{
+								ALICE_LOG_WARN("Reload Scripts: entry.instance is not null before recreation, resetting...");
+								entry.instance.reset();
+							}
+							
+							// EnsureUIScriptInstance 호출하여 새 인스턴스 생성 및 Owner, World 재주입
+							UIScriptSystem::EnsureUIScriptInstance(uiWorld, owner, entry);
+							
+							if (entry.instance)
+							{
+								recreatedCount++;
+								ALICE_LOG_INFO("Reload Scripts: Successfully recreated script '%s' for ownerID: %lu (instance=%p, Owner=%p, World=%p)", 
+									entry.scriptName.c_str(), ownerID, entry.instance.get(), entry.instance->Owner, entry.instance->World);
+							}
+							else
+							{
+								ALICE_LOG_WARN("Reload Scripts: Failed to recreate script '%s' for ownerID: %lu", entry.scriptName.c_str(), ownerID);
+							}
+						}
+					}
+					
+					ALICE_LOG_INFO("Reload Scripts: UI script recreation completed (recreated: %zu scripts)", recreatedCount);
+				}
 			}
+			catch (...)
+			{
+				ALICE_LOG_WARN("Reload Scripts: Exception during UI script recreation");
+			}
+		}
+		ALICE_LOG_INFO("Reload Scripts: UI script recreation completed");
 
-			// 새 DLL의 vtable/RTTR이 준비된 뒤에 인스턴스를 다시 만듭니다.
-			RestoreScripts(world, snaps);
-			return true;
+		ALICE_LOG_INFO("Reload Scripts: All operations completed successfully");
+		return true;
 		}
 
 		// 빌드/배포용 간단 파일 유틸 (에러는 로그로 남기고, 실패는 false 반환)
@@ -1971,7 +2151,7 @@ namespace Alice
 				{
 					// 플레이 전에 스크립트 리로드 실행
 					ALICE_LOG_INFO("Play button pressed: Starting script reload...");
-					bool reloadSuccess = ReloadScripts_FromButton(world);
+					bool reloadSuccess = ReloadScripts_FromButton(world, m_uiWorldManager);
 					if (!reloadSuccess)
 					{
 						// 스크립트 리로드 실패 시 경고 표시 및 게임 실행 중단
@@ -2151,6 +2331,16 @@ namespace Alice
                     CreateUIImage();
                     ImGui::CloseCurrentPopup();
                 }
+				if (ImGui::MenuItem("UI_Button"))
+				{
+					CreateUIButton();
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::MenuItem("UI_GuageBar"))
+				{
+					CreateUIGauageBar();
+					ImGui::CloseCurrentPopup();
+				}
                 ImGui::EndPopup();
             }
 
@@ -2161,7 +2351,7 @@ namespace Alice
 			{
 				// ImGui Begin/End 짝을 깨지 않기 위해,
 				// 실제 빌드/복사/리로드 로직은 별도 헬퍼 함수에서 처리합니다.
-				ReloadScripts_FromButton(world);
+				ReloadScripts_FromButton(world, m_uiWorldManager);
 				m_scriptBuilded = true;
 			}
 
@@ -3406,6 +3596,18 @@ namespace Alice
 				ImVec2 imgMin = ImGui::GetItemRectMin();
 				ImVec2 imgMax = ImGui::GetItemRectMax();
 				ImVec2 imgSize = ImGui::GetItemRectSize();
+
+				// 실제 게임 뷰포트 영역을 UIWorldManager에 전달 (Unity 좌표계 기준)
+				// ImGui 창을 제외한 실제 렌더링 영역만 Unity 좌표계 적용
+				if (uiWorldManager)
+				{
+					float viewportX = imgMin.x;
+					float viewportY = imgMin.y;
+					float viewportWidth = imgSize.x;
+					float viewportHeight = imgSize.y;
+					
+					uiWorldManager->SetViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+				}
 
 				// 프리팹 드래그앤드롭: 뷰포트 이미지 위에 드롭 타겟 추가
 				if (ImGui::BeginDragDropTarget())
@@ -7779,6 +7981,53 @@ namespace Alice
 	}
 
 
+
+	void EditorCore::CreateUIButton()
+	{
+		if (!m_uiWorldManager)
+		{
+			ALICE_LOG_WARN("[EditorCore] CreateUIButton: UIWorldManager is not set");
+			return;
+		}
+
+		UISceneManager& manager = m_uiWorldManager->GetManager();
+		
+		// UIButton 생성 (템플릿 특수화 사용)
+		UIButton* uiButton = manager.CreateUIObjects<UIButton>();
+		if (uiButton)
+		{
+			ALICE_LOG_INFO("[EditorCore] CreateUIButton: Created UIButton with ID=%lu", uiButton->getID());
+			g_SceneDirty = true;
+		}
+		else
+		{
+			ALICE_LOG_ERRORF("[EditorCore] CreateUIButton: Failed to create UIButton");
+		}
+	}
+
+	void EditorCore::CreateUIGauageBar()
+	{
+		if (!m_uiWorldManager)
+		{
+			ALICE_LOG_WARN("[EditorCore] CreateUIGauageBar: UIWorldManager is not set");
+			return;
+		}
+
+		UISceneManager& manager = m_uiWorldManager->GetManager();
+		
+		// UIGaugeBar 생성 (CreateEntity<UIGaugeBar> 특수화가 이미지 4개를 자동 생성함)
+		UIGaugeBar* gaugeBar = manager.CreateUIObjects<UIGaugeBar>();
+		if (gaugeBar)
+		{
+			ALICE_LOG_INFO("[EditorCore] CreateUIGauageBar: Created UIGaugeBar with ID=%lu", gaugeBar->getID());
+			g_SceneDirty = true;
+		}
+		else
+		{
+			ALICE_LOG_ERRORF("[EditorCore] CreateUIGauageBar: Failed to create UIGaugeBar");
+		}
+	}
+
 	void EditorCore::RenderUIHeirarcy()
 {
 		if (ImGui::Begin("UI Hierarchy"))
@@ -7797,6 +8046,9 @@ namespace Alice
 					}
 					else
 					{
+						// 삭제할 UI 엔티티 ID 저장용
+						unsigned long uiEntityToDelete = 0;
+
 						// 재귀적으로 리스트를 그리는 람다 함수
 						std::function<void(unsigned long, int)> DrawUINode = [&](unsigned long id, int depth) {
 							UIBase* uiBase = uiWorld.Get(id);
@@ -7816,6 +8068,16 @@ namespace Alice
 								m_selectedUIEntity = id; // 클릭 시 선택된 UI 엔티티 ID 갱신
 							}
 
+							// 우클릭 컨텍스트 메뉴
+							if (ImGui::BeginPopupContextItem())
+							{
+								if (ImGui::MenuItem("Delete"))
+								{
+									uiEntityToDelete = id;
+								}
+								ImGui::EndPopup();
+							}
+
 							ImGui::Unindent(depth * 10.0f);
 
 							// 자식들도 바로 아래에 출력 (재귀 호출)
@@ -7829,6 +8091,18 @@ namespace Alice
 						for (auto rootID : rootIDs)
 						{
 							DrawUINode(rootID, 0);
+						}
+
+						// 루프가 끝난 뒤에 실제 삭제를 수행합니다. (반복 중 컨테이너 수정 방지)
+						if (uiEntityToDelete != 0)
+						{
+							manager.DeleteUIObjects(uiEntityToDelete);
+							if (m_selectedUIEntity == uiEntityToDelete)
+							{
+								m_selectedUIEntity = 0; // 선택 해제
+							}
+							extern bool g_SceneDirty;
+							g_SceneDirty = true; // 씬 변경 플래그 설정
 						}
 					}
 				}
@@ -8048,28 +8322,47 @@ namespace Alice
 		ImGui::Text("UI Scripts");
 		
 		// Add UI Script 버튼
-		static std::vector<std::string> uiScriptNames;
-		static bool uiScriptNamesBuilt = false;
-		
+		// 매번 새로 조회 (스크립트 리로드 후에도 반영되도록)
 		if (ImGui::BeginCombo("Add UI Script", "Select Script..."))
 		{
-			if (uiScriptNames.empty() || !uiScriptNamesBuilt)
-			{
-				uiScriptNamesBuilt = true;
-				uiScriptNames = UIScriptSystem::GetRegisteredUIScriptNames();
-				std::sort(uiScriptNames.begin(), uiScriptNames.end());
-				uiScriptNames.erase(std::unique(uiScriptNames.begin(), uiScriptNames.end()),
-					uiScriptNames.end());
-			}
-			
+			ALICE_LOG_INFO("[EditorCore] Getting registered UI script names...");
+			std::vector<std::string> uiScriptNames = UIScriptSystem::GetRegisteredUIScriptNames();
+			ALICE_LOG_INFO("[EditorCore] Found %zu registered UI scripts", uiScriptNames.size());
 			for (const auto& name : uiScriptNames)
 			{
-				if (ImGui::Selectable(name.c_str()))
+				ALICE_LOG_INFO("[EditorCore]   - %s", name.c_str());
+			}
+			std::sort(uiScriptNames.begin(), uiScriptNames.end());
+			uiScriptNames.erase(std::unique(uiScriptNames.begin(), uiScriptNames.end()),
+				uiScriptNames.end());
+			
+			if (uiScriptNames.empty())
+			{
+				ImGui::TextDisabled("(No scripts available)");
+			}
+			else
+			{
+				for (const auto& name : uiScriptNames)
 				{
-					// UIWorld에 스크립트 추가
-					uiWorld.AddUIScript(uiEntityID, name);
-					extern bool g_SceneDirty;
-					g_SceneDirty = true;
+					if (ImGui::Selectable(name.c_str()))
+					{
+						ALICE_LOG_INFO("[EditorCore] Adding UI script '%s' to UI entity ID=%lu", name.c_str(), uiEntityID);
+						// UIWorld에 스크립트 추가
+						try {
+							uiWorld.AddUIScript(uiEntityID, name);
+							ALICE_LOG_INFO("[EditorCore] Successfully added UI script '%s'", name.c_str());
+							extern bool g_SceneDirty;
+							g_SceneDirty = true;
+						}
+						catch (const std::exception& e)
+						{
+							ALICE_LOG_ERRORF("[EditorCore] Exception while adding UI script: %s", e.what());
+						}
+						catch (...)
+						{
+							ALICE_LOG_ERRORF("[EditorCore] Unknown exception while adding UI script");
+						}
+					}
 				}
 			}
 			ImGui::EndCombo();

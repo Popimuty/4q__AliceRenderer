@@ -11,6 +11,7 @@
 class UIGaugeBar : public UIBase
 {
 public:
+	const char* GetTypeName() const override { return "UIGaugeBar"; }
 
     void Initalize(UIRenderStruct& rs, CompDelegates& worldDelegates) override;
 
@@ -22,6 +23,9 @@ public:
 
     // 외부에서 게이지 값 설정 (0~1)
     void SetTarget01(float t) { m_target = std::clamp(t, 0.0f, 1.0f); }
+    
+    // 외부에서 정규화된 값 설정 (0~1) - 즉시 반영
+    void SetNormalized(float t01);
 
     UIImage* GetBackgroundImage() { return backGroundImage; }
 

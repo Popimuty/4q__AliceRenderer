@@ -47,6 +47,9 @@ public:
     D2D1_RECT_F m_rect = D2D1::RectF(0, 0, 100, 100);
 
     UIRenderStruct* m_UIRenderStruct{ nullptr };
+    
+    // 기본 색상 (이미지가 없을 때 FillRectangle에 사용)
+    D2D1::ColorF m_fallbackColor{ D2D1::ColorF::White, 1.0f };
 
     void Initalize(UIRenderStruct& UIRenderStruct);
 
@@ -59,5 +62,9 @@ public:
     
     // 리소스 강제 복구 (m_path는 있지만 m_texture가 null인 경우)
     bool EnsureResource();
+    
+    // 기본 색상 설정 (이미지가 없을 때 사용할 색상)
+    void SetFallbackColor(const D2D1::ColorF& color) { m_fallbackColor = color; }
+    const D2D1::ColorF& GetFallbackColor() const { return m_fallbackColor; }
 
 };

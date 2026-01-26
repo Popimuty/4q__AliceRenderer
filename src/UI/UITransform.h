@@ -41,8 +41,9 @@ private:
 	//void CalRect();
 
 public:
-	D2D1::Matrix3x2F m_invWorldTrans;
-	D2D1::Matrix3x2F m_worldTrans; // 월드 transfom
+	D2D1::Matrix3x2F m_invWorldTrans;  // Unity 좌표계 기준 역행렬
+	D2D1::Matrix3x2F m_invD2DTrans;    // D2D 좌표계 기준 역행렬 (ConVertD2DPos의 역행렬)
+	D2D1::Matrix3x2F m_worldTrans;     // 월드 transfom
 public:
 
 	XMFLOAT2 m_translation{ 0,0 };

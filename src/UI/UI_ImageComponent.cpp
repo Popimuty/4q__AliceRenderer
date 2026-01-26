@@ -26,8 +26,6 @@ void UI_ImageComponent::Render()
     auto tmpTransform = Owner->GetTransform();
     const D2D1::Matrix3x2F& tmpMat = tmpTransform.ConVertD2DPos();
     
-   
-
     // 소스 영역 계산 (이미지 내부의 어느 영역을 그릴 것인가)
     m_srcRect = D2D1::RectF(
         m_srcPos.x - SrcWidthHeight.x,
@@ -36,7 +34,16 @@ void UI_ImageComponent::Render()
         m_srcPos.y + SrcWidthHeight.y
     );
     
-    
+    // pivot 보정: 로컬 좌표계에서 pivotOffset을 빼서 그리기 위치 보정
+    // m_rect는 (0, 0, size.x, size.y)이고, pivotOffset만큼 왼쪽/위로 이동
+    float pivotOffsetX = m_pivot.x * m_size.x;
+    float pivotOffsetY = m_pivot.y * m_size.y;
+    D2D1_RECT_F drawRect = D2D1::RectF(
+        m_rect.left - pivotOffsetX,
+        m_rect.top - pivotOffsetY,
+        m_rect.right - pivotOffsetX,
+        m_rect.bottom - pivotOffsetY
+    );
 
     m_UIRenderStruct->m_d2DdevCon->SetTransform(tmpMat);
 
@@ -49,14 +56,23 @@ void UI_ImageComponent::Render()
             EnsureResource();
         }
 
-        m_UIRenderStruct->m_d2DdevCon->FillRectangle(m_rect, m_UIRenderStruct->m_brush.Get());
+        // 브러시 색상을 임시로 m_fallbackColor로 변경
+        // GetColor()는 인수를 받지 않고 D2D1_COLOR_F를 반환함
+        D2D1_COLOR_F originalColor = m_UIRenderStruct->m_brush->GetColor();
+        m_UIRenderStruct->m_brush->SetColor(m_fallbackColor);
+        
+        // FillRectangle 수행
+        m_UIRenderStruct->m_d2DdevCon->FillRectangle(drawRect, m_UIRenderStruct->m_brush.Get());
+        
+        // 브러시 색상을 원래 값으로 복원 (다른 UI에 영향 방지)
+        m_UIRenderStruct->m_brush->SetColor(originalColor);
     }
     else
     {
         // 1장만 로드된 m_texture를 바로 사용
         m_UIRenderStruct->m_d2DdevCon->DrawBitmap(
             m_texture.Get(),
-            m_rect,
+            drawRect,
             1.0f,
             D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
             m_srcRect
@@ -177,15 +193,24 @@ void UI_ImageComponent::Update() {
     m_size = tmpTransform.m_size;
     m_pivot = tmpTransform.m_pivot;
     CalRect();
-    Owner->m_rect = m_rect; // 오너에 갱신된 m_rect 값 추출
+    
+    // pivot 보정이 적용된 drawRect를 Owner->m_rect에 저장 (렌더와 동일한 기준)
+    // 렌더에서 사용하는 drawRect와 같은 기준으로 저장
+    float pivotOffsetX = m_pivot.x * m_size.x;
+    float pivotOffsetY = m_pivot.y * m_size.y;
+    Owner->m_rect = D2D1::RectF(
+        m_rect.left - pivotOffsetX,
+        m_rect.top - pivotOffsetY,
+        m_rect.right - pivotOffsetX,
+        m_rect.bottom - pivotOffsetY
+    );
 }
 
 void UI_ImageComponent::CalRect()
 {
-    // 피벗을 기준으로 로컬 좌표계 상의 사각형 영역 계산
-    float px = m_size.x * m_pivot.x;
-    float py = m_size.y * m_pivot.y;
-    m_rect = D2D1::RectF(-px, -py, m_size.x - px, m_size.y - py);
+    // pivot 보정 없이 로컬 좌표계 상의 사각형 영역 계산 (좌상단 기준)
+    // pivot 보정은 Render() 단계에서 적용됨
+    m_rect = D2D1::RectF(0, 0, m_size.x, m_size.y);
 }
 
 // ============================================================================

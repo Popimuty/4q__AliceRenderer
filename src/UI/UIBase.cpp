@@ -24,63 +24,64 @@ void UIBase::Initalize(UIRenderStruct& UIRenderStruct, CompDelegates& worldDeleg
 
 
 
-bool UIBase::IsMouseOverUIAABB(DirectX::XMFLOAT2& tmpPoint, std::vector<long unsigned>& IDStorage)
+bool UIBase::IsMouseOverUIAABB(DirectX::XMFLOAT2& unityPoint, std::vector<long unsigned>& IDStorage)
 {
 	auto& m_transform = this->GetTransform();
-	if (m_transform.m_rotation == 0.0f)
+	
+	// unityPoint는 Unity 좌표계 (중앙 0,0 / 위가 양수, 아래가 음수)
+	// m_invWorldTrans를 사용하여 로컬 좌표로 역변환
+	float lx =
+		unityPoint.x * m_transform.m_invWorldTrans._11 +
+		unityPoint.y * m_transform.m_invWorldTrans._21 +
+		m_transform.m_invWorldTrans._31;
+
+	float ly =
+		unityPoint.x * m_transform.m_invWorldTrans._12 +
+		unityPoint.y * m_transform.m_invWorldTrans._22 +
+		m_transform.m_invWorldTrans._32;
+
+	// pivot 보정 (렌더와 동일한 방식)
+	float px = m_transform.m_size.x * m_transform.m_pivot.x;
+	float py = m_transform.m_size.y * m_transform.m_pivot.y;
+	lx += px;
+	ly += py;
+
+	// 로컬 좌표 기준 Rect 범위 체크 (0 ~ size)
+	if (lx >= 0.0f && lx <= m_transform.m_size.x &&
+		ly >= 0.0f && ly <= m_transform.m_size.y)
 	{
-		// ���� ����
-		float scaledW = m_transform.m_size.x * m_transform.m_scale.x;
-		float scaledH = m_transform.m_size.y * m_transform.m_scale.y;
-
-		// pivot
-		float pivotPx = m_transform.m_size.x * m_transform.m_pivot.x * m_transform.m_scale.x;
-		float pivotPy = m_transform.m_size.y * m_transform.m_pivot.y * m_transform.m_scale.y;
-
-		const float minX = m_transform.m_translation.x - pivotPx;
-		const float minY = m_transform.m_translation.y - pivotPy;
-		const float maxX = minX + scaledW;
-		const float maxY = minY + scaledH;
-
-
-		if (tmpPoint.x >= minX && tmpPoint.x <= maxX && tmpPoint.y >= minY && tmpPoint.y <= maxY)
-		{
-			IDStorage.push_back(ID);
-			return true;
-		}
-
-		else
-			return false;
+		IDStorage.push_back(ID);
+		return true;
 	}
-
-	IDStorage.push_back(ID);
-
-
-
-	return false; 
+	
+	return false;
 }
 
 
-bool UIBase::IsMouseOverUIRot(DirectX::XMFLOAT2& tmpPoint)
+bool UIBase::IsMouseOverUIRot(DirectX::XMFLOAT2& unityPoint)
 {
 	auto& tr = this->GetTransform();
-	// ���콺 ��ġ�� UI�� ���÷� �ǵ���
-	// pos * invMatrix
-	float inversePosX =
-		tmpPoint.x * tr.m_invWorldTrans._11 +
-		tmpPoint.y * tr.m_invWorldTrans._21 +
+	// unityPoint는 Unity 좌표계 (중앙 0,0 / 위가 양수, 아래가 음수)
+	// m_invWorldTrans를 사용하여 로컬 좌표로 역변환
+	float lx =
+		unityPoint.x * tr.m_invWorldTrans._11 +
+		unityPoint.y * tr.m_invWorldTrans._21 +
 		tr.m_invWorldTrans._31;
 
-	float inversePosY =
-		tmpPoint.x * tr.m_invWorldTrans._12 +
-		tmpPoint.y * tr.m_invWorldTrans._22 +
+	float ly =
+		unityPoint.x * tr.m_invWorldTrans._12 +
+		unityPoint.y * tr.m_invWorldTrans._22 +
 		tr.m_invWorldTrans._32;
 
-	float px = tr.m_size.x * tr.m_pivot.x;
-	float py = tr.m_size.y * tr.m_pivot.y;
-
-	// ����
-	return (inversePosX >= -px && inversePosX <= tr.m_size.x - px &&
-		inversePosY >= -py && inversePosY <= tr.m_size.y - py);
+	// pivot 보정 (렌더와 동일한 방식)
+	float px = tr.m_pivot.x * tr.m_size.x;
+	float py = tr.m_pivot.y * tr.m_size.y;
+	lx += px;
+	ly += py;
+	if(lx >= 0.0f && lx <= tr.m_size.x &&
+		ly >= 0.0f && ly <= tr.m_size.y)
+	int a = 0;
+	// 로컬 좌표계 (0, 0) ~ (size.x, size.y) 범위 체크
+	return (lx >= 0.0f && lx <= tr.m_size.x &&
+		ly >= 0.0f && ly <= tr.m_size.y);
 }
-

@@ -8,6 +8,8 @@ class UIImage : public UIBase
 public:
 	UIImage();
 	~UIImage();
+	
+	const char* GetTypeName() const override { return "UIImage"; }
 public:
 	XMFLOAT2 m_srcPos{ 50,50 };
 	XMFLOAT2 SrcWidthHeight{ 100, 100 };

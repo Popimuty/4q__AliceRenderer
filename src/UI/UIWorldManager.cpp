@@ -28,6 +28,10 @@
 #include "UIRenderStruct.h"
 #include "UISceneManager.h"
 #include "UIBase.h"
+#include "UIButton.h"
+#include "UIGaugeBar.h"
+#include "UIImage.h"
+#include <typeinfo>
 #include "UITransform.h"
 #include "UI_ImageComponent.h"
 #include "UI_ScriptComponent.h"
@@ -157,10 +161,26 @@ void UIWorldManager::Initalize(ID3D11Device* pDev, ID3D11DeviceContext* pDevCon,
 }
 
 
-void UIWorldManager::Update(UINT w, UINT h)
+void UIWorldManager::Update(UINT w, UINT h, bool editorMode)
 {
     m_curWidth = w;
     m_curHeight = h;
+    
+    // RenderStruct 크기 업데이트 (렌더링과 HitTest가 동일한 크기 사용)
+    m_RenderStruct.m_width = w;
+    m_RenderStruct.m_height = h;
+    
+    // 뷰포트 정보 업데이트 (기본값: 전체 윈도우 영역)
+    // letterbox/pillarbox가 있을 경우 SetViewport()를 통해 실제 뷰포트 정보를 전달받아야 함
+    // 현재는 기본값으로 설정 (전체 윈도우 = 뷰포트)
+    // SetViewport()가 호출되지 않으면 기본값 사용
+    if (m_RenderStruct.m_viewportWidth == 0.0f || m_RenderStruct.m_viewportHeight == 0.0f)
+    {
+        m_RenderStruct.m_viewportX = 0.0f;
+        m_RenderStruct.m_viewportY = 0.0f;
+        m_RenderStruct.m_viewportWidth = static_cast<float>(w);
+        m_RenderStruct.m_viewportHeight = static_cast<float>(h);
+    }
 
     // 현재 매니저 포인터 저장
     if (sceneStorages.size() == 0 || m_nowSceneName.empty()) { return; }
@@ -170,7 +190,34 @@ void UIWorldManager::Update(UINT w, UINT h)
         m_nowManager = it->second.get();
         if (m_nowManager)
         {
+            // 모든 Transform의 m_screenSize를 렌더 타겟 크기로 업데이트 (렌더링 행렬 계산용)
+            // 중요: m_screenSize는 렌더 타겟 크기(전체 텍스처 크기)여야 함
+            // 뷰포트 정보는 마우스 입력 판정에만 사용되고, 렌더링에는 영향을 주지 않음
+            auto& world = m_nowManager->GetWorld();
+            for (auto rootID : world.GetRootIDs())
+            {
+                if (auto* root = world.Get(rootID))
+                {
+                    if (root->Transform)
+                    {
+                        root->Transform->m_screenSize = { static_cast<float>(w), static_cast<float>(h) };
+                    }
+                    // 모든 자식도 업데이트
+                    world.Traverse(root, [w, h](UIBase* node) {
+                        if (node->Transform)
+                        {
+                            node->Transform->m_screenSize = { static_cast<float>(w), static_cast<float>(h) };
+                        }
+                    });
+                }
+            }
+            
             m_nowManager->Update(0.0f);
+            
+            // Event System: 마우스 입력 처리 (클릭/드래그)
+            // viewport size 및 editorMode 전달
+            UIEventSystem::UpdateMouseEvents(m_nowManager->GetWorld(), m_inputSystem, &m_RenderStruct,
+                w, h, editorMode);
         }
     }
 }
@@ -293,6 +340,16 @@ static bool WriteUIEntity(Alice::JsonRttr::json& outEntity, const UIWorld& world
 
     const UIBase* uiBase = world.Get(id);
     if (!uiBase) return false;
+
+    // 타입 정보 저장 (고정 문자열 사용 - 맹글링 방지)
+    const char* typeName = uiBase->GetTypeName();
+    outEntity["type"] = std::string(typeName);
+    
+    // 이름 저장
+    outEntity["name"] = uiBase->GetName();
+    
+    ALICE_LOG_INFO("[UIWorldManager] WriteUIEntity: id=%lu, typeName=%s, name=%s", 
+        id, typeName, uiBase->GetName().c_str());
 
     // parentID 저장 (0이면 루트)
     long unsigned int parentID = uiBase->GetParentID();
@@ -427,19 +484,79 @@ static bool ApplyUIEntity(UISceneManager& manager, const Alice::JsonRttr::json& 
 
     UIWorld& uiWorld = manager.GetWorld();
     
-    // 새 UIBase 객체 생성 (새로운 unique_ptr로 관리됨)
-    // 이전 메모리 주소와는 완전히 무관한 새 객체
-    UIBase* uiBase = nullptr;
-    if (parentID == 0)
+    // JSON에서 타입 정보 읽기 (기존 파일 호환성을 위해 기본값 "UIImage" 사용)
+    std::string typeName = e.value("type", std::string(""));
+    
+    // 타입 정보가 없으면 경고 로그 후 기본값으로 처리 (기존 파일 호환성)
+    if (typeName.empty())
     {
-        uiBase = manager.CreateUIObjects<UIImage>();
+        ALICE_LOG_WARN("[UIWorldManager] ApplyUIEntity: missing 'type' field, using default 'UIImage'. json=%s", e.dump().c_str());
+        typeName = "UIImage"; // 기본값으로 설정
+    }
+    
+    ALICE_LOG_INFO("[UIWorldManager] ApplyUIEntity: reading type from JSON - typeName=%s, parentID=%lu", 
+        typeName.c_str(), parentID);
+    
+    // 새 UIBase 객체 생성 (타입에 따라 적절한 타입으로 생성)
+    UIBase* uiBase = nullptr;
+    
+    // 타입 매칭 (고정 문자열로 저장되므로 정확한 매칭만 사용)
+    if (typeName == "UIButton")
+    {
+        ALICE_LOG_INFO("[UIWorldManager] ApplyUIEntity: Creating UIButton - typeName=%s", typeName.c_str());
+        // UIButton 생성 (루트로만 생성 가능)
+        if (parentID == 0)
+        {
+            uiBase = manager.CreateUIObjects<UIButton>(); // 템플릿 특수화 사용
+        }
+        else
+        {
+            // UIButton은 루트로만 생성 가능 (자식으로는 생성하지 않음)
+            ALICE_LOG_WARN("[UIWorldManager] ApplyUIEntity: UIButton cannot be created as child, creating as root");
+            uiBase = manager.CreateUIObjects<UIButton>();
+        }
+    }
+    else if (typeName == "UIGaugeBar")
+    {
+        // UIGaugeBar 생성
+        if (parentID == 0)
+        {
+            uiBase = manager.CreateUIObjects<UIGaugeBar>();
+        }
+        else
+        {
+            uiBase = manager.CreateChildUIObjects<UIGaugeBar>(parentID);
+        }
     }
     else
     {
-        uiBase = manager.CreateChildUIObjects<UIImage>(parentID);
+        // 기본값: UIImage (타입 정보가 없거나 알 수 없는 타입인 경우)
+        ALICE_LOG_INFO("[UIWorldManager] ApplyUIEntity: Creating UIImage (default) - typeName=%s", typeName.c_str());
+        if (parentID == 0)
+        {
+            uiBase = manager.CreateUIObjects<UIImage>();
+        }
+        else
+        {
+            uiBase = manager.CreateChildUIObjects<UIImage>(parentID);
+        }
     }
     
     if (!uiBase) return false;
+    
+    // 이름 로드 및 등록
+    std::string name = e.value("name", "");
+    unsigned long actualRuntimeID = uiBase->getID();
+    if (!name.empty())
+    {
+        // JSON에서 읽은 이름으로 등록 (중복 처리 포함)
+        uiWorld.Rename(actualRuntimeID, name);
+        uiBase->SetName(name);
+    }
+    // name이 없으면 기본 이름 유지 (이미 CreateEntity에서 등록됨)
+    
+    ALICE_LOG_INFO("[UIWorldManager] ApplyUIEntity: created type=%s, id=%lu, parentID=%lu, name=%s", 
+        typeName.c_str(), actualRuntimeID, parentID, uiBase->GetName().c_str());
     
     // 생성된 UIBase의 실제 런타임 ID 사용
     // 주의: JSON에 저장된 ID와 다를 수 있음 (새 객체이므로)
@@ -1370,4 +1487,91 @@ void UIWorldManager::EnsureAllUIResources()
     {
         ALICE_LOG_INFO("[UIWorldManager] No UI resources needed recovery across all scenes");
     }
+}
+
+void UIWorldManager::SetFallbackColorForAllImages(const D2D1::ColorF& color)
+{
+    if (sceneStorages.empty())
+    {
+        ALICE_LOG_WARN("[UIWorldManager] SetFallbackColorForAllImages: No UI scenes available");
+        return;
+    }
+    
+    size_t totalSetCount = 0;
+    
+    // 모든 UI 월드를 순회하며 기본 색상 설정
+    for (const auto& pair : sceneStorages)
+    {
+        const std::string& sceneName = pair.first;
+        UISceneManager* manager = pair.second.get();
+        
+        if (!manager)
+        {
+            ALICE_LOG_WARN("[UIWorldManager] Scene '%s' has null manager, skipping", sceneName.c_str());
+            continue;
+        }
+        
+        UIWorld& uiWorld = manager->GetWorld();
+        const auto& rootIDs = uiWorld.GetRootIDs();
+        
+        if (rootIDs.empty())
+        {
+            continue;
+        }
+        
+        size_t sceneSetCount = 0;
+        
+        // 재귀 함수를 별도로 정의 (람다 재귀 호출 문제 해결)
+        std::function<void(UIWorld&, UISceneManager*, const std::string&, size_t&, unsigned long)> setFallbackColorRecursive;
+        setFallbackColorRecursive = [&setFallbackColorRecursive, &color](UIWorld& uiWorld, UISceneManager* manager, 
+                                                                        const std::string& sceneName, size_t& sceneSetCount, unsigned long id) {
+            UIBase* uiBase = uiWorld.Get(id);
+            if (!uiBase) return;
+            
+            // UI_ImageComponent 기본 색상 설정
+            if (!manager) return;
+            UI_ImageComponent* img = manager->TryGetComponent<UI_ImageComponent>(id);
+            if (img)
+            {
+                img->SetFallbackColor(color);
+                sceneSetCount++;
+            }
+            
+            // 자식 엔티티도 재귀적으로 설정
+            const auto& childIDs = uiBase->GetChildIDs();
+            for (auto childID : childIDs)
+            {
+                setFallbackColorRecursive(uiWorld, manager, sceneName, sceneSetCount, childID);
+            }
+        };
+        
+        // 루트 엔티티부터 시작하여 모든 엔티티의 기본 색상 설정
+        for (auto rootID : rootIDs)
+        {
+            setFallbackColorRecursive(uiWorld, manager, sceneName, sceneSetCount, rootID);
+        }
+        
+        totalSetCount += sceneSetCount;
+        if (sceneSetCount > 0)
+        {
+            ALICE_LOG_INFO("[UIWorldManager] Scene '%s': Set fallback color for %zu UI image components", 
+                          sceneName.c_str(), sceneSetCount);
+        }
+    }
+    
+    if (totalSetCount > 0)
+    {
+        ALICE_LOG_INFO("[UIWorldManager] Total fallback color set for %zu UI image components across all scenes", 
+                      totalSetCount);
+    }
+}
+
+void UIWorldManager::SetViewport(float viewportX, float viewportY, float viewportWidth, float viewportHeight)
+{
+    // 뷰포트 정보 설정 (실제 그려지는 화면 영역)
+    // letterbox/pillarbox가 있을 때 윈도우 전체가 아닌 실제 렌더링 영역을 설정
+    m_RenderStruct.m_viewportX = viewportX;
+    m_RenderStruct.m_viewportY = viewportY;
+    m_RenderStruct.m_viewportWidth = viewportWidth;
+    m_RenderStruct.m_viewportHeight = viewportHeight;
 }

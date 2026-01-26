@@ -31,8 +31,15 @@ public:
 	/// 현재 등록된 UI 스크립트 이름 목록을 반환합니다.
 	static std::vector<std::string> GetRegisteredUIScriptNames();
 
+	/// 스크립트 인스턴스 생성 (DLL 팩토리 우선, 실패 시 EXE 레지스트리)
+	/// DLL과 EXE 레지스트리를 모두 확인하여 스크립트를 생성합니다.
+	static std::unique_ptr<IUIScript> CreateUIScriptInstance(const std::string& name);
+
 	/// UIWorld 전체 Tick
 	static void Tick(UIWorld& world, float dt);
+
+	/// UI 스크립트 인스턴스 생성 및 초기화 (DLL Reload 후 재생성용)
+	static void EnsureUIScriptInstance(UIWorld& world, UIBase* owner, UIScriptEntry& entry);
 
 private:
 	static DynamicUIScriptFactory s_factory;
@@ -46,5 +53,4 @@ private:
 	
 
 	static void TickUIScriptEntry(UIWorld& world, UIBase* owner, UIScriptEntry& entry, float dt);
-	static void EnsureUIScriptInstance(UIWorld& world, UIBase* owner, UIScriptEntry& entry);
 };
