@@ -73,7 +73,8 @@
 #include "UI/UIGaugeBar.h"
 #include "UI/UIScriptSystem.h"
 #include "UI/UI_ScriptComponent.h"
-
+#include "UI/UI_TextComponent.h"
+#include "UI/UITextObject.h"
 using namespace DirectX;
 
 namespace Alice
@@ -2339,6 +2340,11 @@ namespace Alice
 				if (ImGui::MenuItem("UI_GuageBar"))
 				{
 					CreateUIGauageBar();
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::MenuItem("UI_Text"))
+				{
+					CreateUIText();
 					ImGui::CloseCurrentPopup();
 				}
                 ImGui::EndPopup();
@@ -8027,6 +8033,31 @@ namespace Alice
 			ALICE_LOG_ERRORF("[EditorCore] CreateUIGauageBar: Failed to create UIGaugeBar");
 		}
 	}
+
+	void EditorCore::CreateUIText()
+	{
+		if (!m_uiWorldManager)
+		{
+			ALICE_LOG_WARN("[EditorCore] CreateUIGauageBar: UIWorldManager is not set");
+			return;
+		}
+
+		UISceneManager& manager = m_uiWorldManager->GetManager();
+
+		// UIGaugeBar 생성 (CreateEntity<UIGaugeBar> 특수화가 이미지 4개를 자동 생성함)
+		UITextObject* gaugeBar = manager.CreateUIObjects<UITextObject>();
+		if (gaugeBar)
+		{
+			ALICE_LOG_INFO("[EditorCore] CreateUIGauageBar: Created UIGaugeBar with ID=%lu", gaugeBar->getID());
+			g_SceneDirty = true;
+		}
+		else
+		{
+			ALICE_LOG_ERRORF("[EditorCore] CreateUIGauageBar: Failed to create UIGaugeBar");
+		}
+	}
+
+
 
 	void EditorCore::RenderUIHeirarcy()
 {

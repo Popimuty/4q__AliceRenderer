@@ -76,6 +76,8 @@ public:
     const std::vector<long unsigned int>& GetChildIDs() const { return childIDStorage; }
 
 
+
+
     //---------- 컴포넌트 헬퍼 ---------------
     template<class T, class... Args>
         requires std::derived_from<T, IUIComponent>

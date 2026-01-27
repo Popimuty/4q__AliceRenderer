@@ -22,7 +22,14 @@ public:
     void SetupParts(UIImage* bgi, UIImage* fi, UIImage* ldi, UIImage* lui);
 
     // 외부에서 게이지 값 설정 (0~1)
-    void SetTarget01(float t) { m_target = std::clamp(t, 0.0f, 1.0f); }
+    void SetTarget01(float t) 
+    { 
+        m_target = std::clamp(t, 0.0f, 1.0f);
+        // m_prevTarget을 업데이트하지 않아야 Update()에서 방향 감지가 가능
+        // (m_prevTarget은 Update()에서 자동으로 업데이트됨)
+    }
+
+    float GetTarget() { return m_target; }
     
     // 외부에서 정규화된 값 설정 (0~1) - 즉시 반영
     void SetNormalized(float t01);
@@ -50,15 +57,15 @@ private:
     float m_current = 1.0f;
     float m_prevTarget = 1.0f;
 
-    float m_velocity = 0.0f;
+    float m_velocity = 1.0f;
     float m_smoothTime = 0.08f;
 
     float m_lerpDown = 1.0f;
-    float m_lerpDownVel = 0.0f;
+    float m_lerpDownVel = 0.1f;
     float m_lerpDownTime = 0.15f;
 
     float m_lerpUp = 1.0f;
-    float m_lerpUpVel = 0.0f;
+    float m_lerpUpVel = 0.1f;
     float m_lerpUpTime = 0.10f;
 
     // SmoothDamp (maxSpeed 기본값: FLT_MAX)

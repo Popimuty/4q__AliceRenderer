@@ -1,4 +1,4 @@
-﻿#include "UI_TextComponent.h"
+#include "UI_TextComponent.h"
 #include "Core/Logger.h"
 #include "UI/UITransform.h"
 #include "UI/UIBase.h"
@@ -58,16 +58,9 @@ void UI_TextComponent::Render()
 	}
 
 	auto& transform = Owner->GetTransform();
-	
-	// pivot 보정: 텍스트 레이아웃의 위치를 pivot에 맞게 조정
-	// DrawTextLayout의 position은 텍스트의 좌상단 위치
-	// pivot offset을 빼서 올바른 위치에 그리기
-	float pivotOffsetX = transform.m_pivot.x * transform.m_size.x;
-	float pivotOffsetY = transform.m_pivot.y * transform.m_size.y;
-	
 	D2D1_POINT_2F position = D2D1::Point2F(
-		transform.m_translation.x - pivotOffsetX,
-		transform.m_translation.y - pivotOffsetY
+		transform.m_translation.x,
+		transform.m_translation.y
 	);
 
 	// 텍스트 레이아웃 렌더링

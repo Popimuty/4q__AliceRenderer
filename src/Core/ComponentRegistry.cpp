@@ -748,13 +748,13 @@ namespace Alice
 
         // UI_ImageComponent 등록 (public 멤버만)
         // m_path는 private이므로 직렬화 시 수동으로 처리해야 함
+        // m_size, m_pivot은 UITransform에서 관리하므로 제거됨
         rttr::registration::class_<UI_ImageComponent>("UI_ImageComponent")
             .constructor<>()
-            .property("m_size", &UI_ImageComponent::m_size)
             .property("m_srcPos", &UI_ImageComponent::m_srcPos)
-            .property("SrcWidthHeight", &UI_ImageComponent::SrcWidthHeight)
-            .property("m_pivot", &UI_ImageComponent::m_pivot);
+            .property("SrcWidthHeight", &UI_ImageComponent::SrcWidthHeight);
             // m_path는 private이므로 직렬화 시 수동으로 처리
+            // m_size, m_pivot은 UITransform에서 관리하므로 제거됨
 
         // UI_ScriptComponent 등록
         rttr::registration::class_<UI_ScriptComponent>("UI_ScriptComponent")

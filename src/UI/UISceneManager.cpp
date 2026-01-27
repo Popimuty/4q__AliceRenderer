@@ -508,16 +508,11 @@ UIScriptEntry& UIWorld::AddUIScript(unsigned long ownerID, const std::string& sc
 	{
 
 		// 포인터 주입 및 검증 (EXE 주소 공간의 포인터를 DLL 객체에 주입)
-		ALICE_LOG_INFO("[UIWorld] AddUIScript: Injecting pointers (EXE address space) - owner=%p, world=%p", owner, this);
-		
 		entry.instance->Owner = owner;
 		entry.instance->OwnerID = ownerID;
 		entry.instance->World = this; // EXE의 World 포인터를 DLL 객체에 주입
 		
 		// 포인터 검증: 주입된 포인터가 제대로 설정되었는지 확인
-		ALICE_LOG_INFO("[UIWorld] AddUIScript: Pointer verification - instance->Owner=%p, instance->OwnerID=%lu, instance->World=%p",
-			entry.instance->Owner, entry.instance->OwnerID, entry.instance->World);
-		
 		if (entry.instance->Owner != owner)
 		{
 			ALICE_LOG_ERRORF("[UIWorld] AddUIScript: CRITICAL - Owner pointer mismatch! (expected=%p, actual=%p)", 
@@ -545,17 +540,7 @@ UIScriptEntry& UIWorld::AddUIScript(unsigned long ownerID, const std::string& sc
 			// DLL 경계 문제
 		
 		}
-		else
-		{
-			ALICE_LOG_WARN("[UIWorld] AddUIScript: Owner is null, skipping OnAdded for script '%s'", scriptName.c_str());
-		}
 		
-
-		ALICE_LOG_INFO("[UIWorld] AddUIScript: Created script '%s' for UI ID=%lu", scriptName.c_str(), ownerID);
-	}
-	else
-	{
-		ALICE_LOG_WARN("[UIWorld] AddUIScript: Failed to create script '%s' for UI ID=%lu (will be created later)", scriptName.c_str(), ownerID);
 	}
 	
 	
@@ -1024,10 +1009,29 @@ void UIRenderSystem::Render(UIWorld& world, UIRenderStruct* renderStruct)
 void UIRenderSystem::RenderRoot(UIWorld& world, UIRenderStruct* renderStruct)
 {
 	// ��Ʈ UI �����?���� 
+	// #region agent log
+	FILE* logFile = fopen("d:\\4Q\\4q__AliceRenderer\\.cursor\\debug.log", "a");
+	if (logFile) {
+		fprintf(logFile, "{\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"H\",\"location\":\"UISceneManager.cpp:1009\",\"message\":\"RenderRoot called\",\"data\":{\"rootCount\":%zu},\"timestamp\":%lld}\n",
+			world.GetRootIDs().size(), (long long)time(nullptr) * 1000);
+		fclose(logFile);
+	}
+	// #endregion agent log
+
 	for (auto rootID : world.GetRootIDs())
 	{
 		if (auto* root = world.Get(rootID))
 		{
+			// #region agent log
+			logFile = fopen("d:\\4Q\\4q__AliceRenderer\\.cursor\\debug.log", "a");
+			if (logFile) {
+				const char* typeName = root->GetTypeName();
+				fprintf(logFile, "{\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"H\",\"location\":\"UISceneManager.cpp:1016\",\"message\":\"Rendering root\",\"data\":{\"rootID\":%lu,\"typeName\":\"%s\"},\"timestamp\":%lld}\n",
+					rootID, typeName ? typeName : "unknown", (long long)time(nullptr) * 1000);
+				fclose(logFile);
+			}
+			// #endregion agent log
+
 			root->Render();
 			RenderRootChild(world, root);
 		}
@@ -1062,14 +1066,18 @@ void UISceneManager::initalize(ID3D11Device* Dev, ID3D11DeviceContext* DevCon, U
 
 void UISceneManager::Update(float deltaTime)
 {
+	// Script System: UI_ScriptComponent ?�데?�트
+	UIScriptSystem::Tick(m_world, deltaTime);
+
 	// Layout System: Transform ?�데?�트 (먼�? ?�행 - UI Update ?�에 Transform??계산?�어????
 	UILayoutSystem::UpdateTransforms(m_world);
 
-	// Layout System: UI Update
+	// Layout System: UI Update (여기서 scale 등이 변경될 수 있음)
 	UILayoutSystem::UpdateUI(m_world, deltaTime);
+	
+	// UI Update 후 Transform 다시 업데이트 (scale 변경이 반영되도록)
+	UILayoutSystem::UpdateTransforms(m_world);
 
-	// Script System: UI_ScriptComponent ?�데?�트
-	UIScriptSystem::Tick(m_world, deltaTime);
 
 	// Image System: UI_ImageComponent ?�데?�트
 	UIImageSystem::Update(m_world);
@@ -1103,6 +1111,9 @@ void UISceneManager::Render()
 	m_UIRenderStruct->m_d2DdevCon->Clear(D2D1::ColorF(0, 0, 0, 0));
 	
 	UIImageSystem::Render(m_world, m_UIRenderStruct);
+	
+	// UI 객체 렌더링 (UIBase::Render 호출 - UITextObject 등)
+	UIRenderSystem::RenderRoot(m_world, m_UIRenderStruct);
 
 	HRESULT hr = m_UIRenderStruct->m_d2DdevCon->EndDraw();
 	

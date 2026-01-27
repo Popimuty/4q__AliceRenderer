@@ -872,7 +872,7 @@ namespace Alice
 			pImpl->m_uiWorld.SetViewport(0.0f, 0.0f, static_cast<float>(pImpl->m_width), static_cast<float>(pImpl->m_height));
 		}
 		// 에디터 모드는 EditorCore에서 ImGui Image 영역을 기준으로 SetViewport 호출
-		pImpl->m_uiWorld.Update(pImpl->m_width, pImpl->m_height, pImpl->m_editorMode);
+		pImpl->m_uiWorld.Update(pImpl->m_width, pImpl->m_height, dt, pImpl->m_editorMode);
 
 	}
 
@@ -1784,8 +1784,8 @@ namespace Alice
 
 		if(pImpl->m_uiWorld.m_d3dDev)
 		{
-			// UI 시스템 리사이즈 (텍스처 재생성)
-			//pImpl->m_uiWorld.Create2DTex(width, height);
+			// UI 시스템 리사이즈 (텍스처 재생성 및 D2D RenderTarget 리사이즈)
+			pImpl->m_uiWorld.Resize(width, height);
 		}
 		
 	}

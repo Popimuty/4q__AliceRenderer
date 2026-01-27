@@ -25,7 +25,7 @@ struct IUIComponent
     // 편의 함수: Owner 이름 조회 (선언만, 구현은 IUIComponent.cpp에서)
     const std::string& GetOwnerName() const;
 
-    //  ( ȣȯ)
+    //  
     long unsigned id{ 0 };
     long unsigned owner{ 0 };
 };

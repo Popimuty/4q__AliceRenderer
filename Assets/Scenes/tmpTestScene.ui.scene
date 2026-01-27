@@ -1,5 +1,547 @@
 {
     "sceneName": "tmpTestScene",
-    "uiEntities": [],
+    "uiEntities": [
+        {
+            "children": [
+                2,
+                3,
+                4,
+                5
+            ],
+            "components": {
+                "Transform": {
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        1.0,
+                        1.0
+                    ],
+                    "size": [
+                        400.0,
+                        50.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                },
+                "UIScripts": [
+                    {
+                        "enabled": true,
+                        "name": "MyUIScript",
+                        "props": {
+                            "OwnerID": "",
+                            "m_bound": true,
+                            "m_button": "",
+                            "m_gauge": "",
+                            "m_target": 1.0
+                        }
+                    }
+                ]
+            },
+            "id": 1,
+            "name": "UI_1",
+            "type": "UIGaugeBar"
+        },
+        {
+            "components": {
+                "Image": {
+                    "nowIndex": 0,
+                    "pivot": [
+                        0.0,
+                        0.5
+                    ],
+                    "rect": [
+                        0.0,
+                        0.0,
+                        400.0,
+                        50.0
+                    ],
+                    "size": [
+                        400.0,
+                        50.0
+                    ],
+                    "srcPos": [
+                        50.0,
+                        50.0
+                    ],
+                    "srcRect": [
+                        -50.0,
+                        -50.0,
+                        150.0,
+                        150.0
+                    ],
+                    "srcWidthHeight": [
+                        100.0,
+                        100.0
+                    ]
+                },
+                "Transform": {
+                    "pivot": [
+                        0.0,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        1.0,
+                        1.0
+                    ],
+                    "size": [
+                        400.0,
+                        50.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            "id": 2,
+            "name": "UI_2",
+            "parent": 1,
+            "type": "UIImage"
+        },
+        {
+            "components": {
+                "Image": {
+                    "nowIndex": 0,
+                    "pivot": [
+                        0.0,
+                        0.5
+                    ],
+                    "rect": [
+                        0.0,
+                        0.0,
+                        400.0,
+                        50.0
+                    ],
+                    "size": [
+                        400.0,
+                        50.0
+                    ],
+                    "srcPos": [
+                        50.0,
+                        50.0
+                    ],
+                    "srcRect": [
+                        -50.0,
+                        -50.0,
+                        150.0,
+                        150.0
+                    ],
+                    "srcWidthHeight": [
+                        100.0,
+                        100.0
+                    ]
+                },
+                "Transform": {
+                    "pivot": [
+                        0.0,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        0.9999999403953552,
+                        1.0
+                    ],
+                    "size": [
+                        400.0,
+                        50.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            "id": 3,
+            "name": "UI_3",
+            "parent": 1,
+            "type": "UIImage"
+        },
+        {
+            "components": {
+                "Image": {
+                    "nowIndex": 0,
+                    "pivot": [
+                        0.0,
+                        0.5
+                    ],
+                    "rect": [
+                        0.0,
+                        0.0,
+                        400.0,
+                        50.0
+                    ],
+                    "size": [
+                        400.0,
+                        50.0
+                    ],
+                    "srcPos": [
+                        50.0,
+                        50.0
+                    ],
+                    "srcRect": [
+                        -50.0,
+                        -50.0,
+                        150.0,
+                        150.0
+                    ],
+                    "srcWidthHeight": [
+                        100.0,
+                        100.0
+                    ]
+                },
+                "Transform": {
+                    "pivot": [
+                        0.0,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        0.0,
+                        1.0
+                    ],
+                    "size": [
+                        400.0,
+                        50.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            "id": 4,
+            "name": "UI_4",
+            "parent": 1,
+            "type": "UIImage"
+        },
+        {
+            "components": {
+                "Image": {
+                    "nowIndex": 0,
+                    "pivot": [
+                        0.0,
+                        0.5
+                    ],
+                    "rect": [
+                        0.0,
+                        0.0,
+                        400.0,
+                        50.0
+                    ],
+                    "size": [
+                        400.0,
+                        50.0
+                    ],
+                    "srcPos": [
+                        50.0,
+                        50.0
+                    ],
+                    "srcRect": [
+                        -50.0,
+                        -50.0,
+                        150.0,
+                        150.0
+                    ],
+                    "srcWidthHeight": [
+                        100.0,
+                        100.0
+                    ]
+                },
+                "Transform": {
+                    "pivot": [
+                        0.0,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        1.0,
+                        1.0
+                    ],
+                    "size": [
+                        400.0,
+                        50.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            "id": 5,
+            "name": "UI_5",
+            "parent": 1,
+            "type": "UIImage"
+        },
+        {
+            "children": [
+                7,
+                8,
+                9,
+                10
+            ],
+            "components": {
+                "Transform": {
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        1.0,
+                        1.0
+                    ],
+                    "size": [
+                        100.0,
+                        100.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            "id": 6,
+            "name": "UI_6",
+            "type": "UIButton"
+        },
+        {
+            "components": {
+                "Image": {
+                    "nowIndex": 0,
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rect": [
+                        0.0,
+                        0.0,
+                        100.0,
+                        100.0
+                    ],
+                    "size": [
+                        100.0,
+                        100.0
+                    ],
+                    "srcPos": [
+                        50.0,
+                        50.0
+                    ],
+                    "srcRect": [
+                        -50.0,
+                        -50.0,
+                        150.0,
+                        150.0
+                    ],
+                    "srcWidthHeight": [
+                        100.0,
+                        100.0
+                    ]
+                },
+                "Transform": {
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        1.0,
+                        1.0
+                    ],
+                    "size": [
+                        100.0,
+                        100.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            "id": 7,
+            "name": "UI_7",
+            "parent": 6,
+            "type": "UIImage"
+        },
+        {
+            "components": {
+                "Image": {
+                    "nowIndex": 0,
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rect": [
+                        0.0,
+                        0.0,
+                        100.0,
+                        100.0
+                    ],
+                    "size": [
+                        100.0,
+                        100.0
+                    ],
+                    "srcPos": [
+                        50.0,
+                        50.0
+                    ],
+                    "srcRect": [
+                        -50.0,
+                        -50.0,
+                        150.0,
+                        150.0
+                    ],
+                    "srcWidthHeight": [
+                        100.0,
+                        100.0
+                    ]
+                },
+                "Transform": {
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        0.0,
+                        0.0
+                    ],
+                    "size": [
+                        100.0,
+                        100.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            "id": 8,
+            "name": "UI_8",
+            "parent": 6,
+            "type": "UIImage"
+        },
+        {
+            "components": {
+                "Image": {
+                    "nowIndex": 0,
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rect": [
+                        0.0,
+                        0.0,
+                        100.0,
+                        100.0
+                    ],
+                    "size": [
+                        100.0,
+                        100.0
+                    ],
+                    "srcPos": [
+                        50.0,
+                        50.0
+                    ],
+                    "srcRect": [
+                        -50.0,
+                        -50.0,
+                        150.0,
+                        150.0
+                    ],
+                    "srcWidthHeight": [
+                        100.0,
+                        100.0
+                    ]
+                },
+                "Transform": {
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        0.0,
+                        0.0
+                    ],
+                    "size": [
+                        100.0,
+                        100.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            "id": 9,
+            "name": "UI_9",
+            "parent": 6,
+            "type": "UIImage"
+        },
+        {
+            "components": {
+                "Image": {
+                    "nowIndex": 0,
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rect": [
+                        0.0,
+                        0.0,
+                        100.0,
+                        100.0
+                    ],
+                    "size": [
+                        100.0,
+                        100.0
+                    ],
+                    "srcPos": [
+                        50.0,
+                        50.0
+                    ],
+                    "srcRect": [
+                        -50.0,
+                        -50.0,
+                        150.0,
+                        150.0
+                    ],
+                    "srcWidthHeight": [
+                        100.0,
+                        100.0
+                    ]
+                },
+                "Transform": {
+                    "pivot": [
+                        0.5,
+                        0.5
+                    ],
+                    "rotation": 0.0,
+                    "scale": [
+                        0.0,
+                        0.0
+                    ],
+                    "size": [
+                        100.0,
+                        100.0
+                    ],
+                    "translation": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            "id": 10,
+            "name": "UI_10",
+            "parent": 6,
+            "type": "UIImage"
+        }
+    ],
     "version": 1
 }

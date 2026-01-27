@@ -288,6 +288,7 @@ namespace Alice
         void CreateUIImage();
 		void CreateUIButton();
 		void CreateUIGauageBar();
+		void CreateUIText();
 
 		// UI Editor 
 		void RenderUIHeirarcy();

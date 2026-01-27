@@ -27,4 +27,8 @@ struct UIRenderStruct
     float m_viewportY{ 0.0f };      // 뷰포트 왼쪽 상단 Y (윈도우 클라이언트 좌표 기준)
     float m_viewportWidth{ 0.0f };  // 뷰포트 너비
     float m_viewportHeight{ 0.0f }; // 뷰포트 높이
+    
+    // ImGui 뷰포트 오프셋 (ImGui 창 내부의 게임 뷰포트 시작 위치)
+    float m_imGuiOffsetX{ 0.0f };   // ImGui 창 내부 오프셋 X
+    float m_imGuiOffsetY{ 0.0f };   // ImGui 창 내부 오프셋 Y
 };

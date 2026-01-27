@@ -1,4 +1,4 @@
-﻿#include "UITransform.h"
+#include "UITransform.h"
 
 // 크기 세팅 함수
 void UITransform::SetTranslation(float x, float y)

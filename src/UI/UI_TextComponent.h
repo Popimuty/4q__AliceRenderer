@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "IUIComponent.h"
 #include <dwrite.h>
 #include <d2d1.h>

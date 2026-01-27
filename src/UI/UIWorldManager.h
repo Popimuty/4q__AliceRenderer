@@ -89,7 +89,7 @@ namespace Alice
     public:
         ID3D11Device* m_d3dDev{ nullptr };
         void Initalize(ID3D11Device* pDev, ID3D11DeviceContext* pDevCon, UINT w, UINT h, Alice::InputSystem& tmpInput);
-        void Update(UINT w, UINT h, bool editorMode = false);
+        void Update(UINT w, UINT h, float deltaTime, bool editorMode = false);
         // 뷰포트 정보 설정 (실제 그려지는 화면 영역)
         void SetViewport(float viewportX, float viewportY, float viewportWidth, float viewportHeight);
         void Render();
@@ -104,6 +104,9 @@ namespace Alice
 
         //3D에 합성할 2D Tex 생성
         void Create2DTex(UINT w, UINT h);
+        
+        // UI 시스템 리사이즈 (텍스처 재생성 및 D2D RenderTarget 리사이즈)
+        void Resize(UINT w, UINT h);
 
         // UI 텍스처 SRV를 반환합니다 (3D 렌더러에서 합성용)
         ID3D11ShaderResourceView* GetUISRV() const { return m_shaderRV.Get(); }
@@ -132,4 +135,6 @@ namespace Alice
         
         // 모든 UI_ImageComponent의 기본 색상 설정 (이미지가 없을 때 사용할 색상)
         void SetFallbackColorForAllImages(const D2D1::ColorF& color);
+
+        void SetImGuiViewportSize(UINT width, UINT height, float offsetX, float offsetY);
     };

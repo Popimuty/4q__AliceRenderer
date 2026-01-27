@@ -21,7 +21,7 @@ void UIGaugeBar::SetupParts(UIImage* bgi, UIImage* fi, UIImage* ldi, UIImage* lu
 
 float UIGaugeBar::SmoothDamp(float current, float target, float& currentVelocity, float smoothTime, float dt)
 {
-    float maxSpeed = 5.0f;
+    float maxSpeed = 2.0f;
 
     smoothTime = std::max(0.0001f, smoothTime);
     float omega = 2.0f / smoothTime;
@@ -53,37 +53,55 @@ void UIGaugeBar::UpdateScaleFromValue()
     if (!FillImage || !lerpDownImage || !lerpUpImage)
         return;
 
-    float fillScaleX = std::clamp(m_current, 0.0f, 1.0f);
-    FillImage->GetTransform().m_scale.x = fillScaleX;
+   
 
     float downScaleX = std::clamp(m_lerpDown, 0.0f, 1.0f);
-    lerpDownImage->GetTransform().m_scale.x = downScaleX;
+    lerpDownImage->GetTransform().m_scale.x = m_target; 
 
+
+    float fillScaleX = std::clamp(m_current, 0.0f, 1.0f);
+    FillImage->GetTransform().m_scale.x = downScaleX;
 
     float upScaleX = std::clamp(m_lerpUp, 0.0f, 1.0f);
-    lerpUpImage->GetTransform().m_scale.x = upScaleX;
+    lerpUpImage->GetTransform().m_scale.x = 0;
 }
 
+
+
+// 지금 줄어들고 늘어날때 보이는 색이 안보임....
 void UIGaugeBar::Update(float dt)
 {
     if (!backGroundImage || !FillImage || !lerpDownImage || !lerpUpImage)
         return;
 
-    // current --SmoothDamp-->  target
+    // 디버깅: Update 호출 및 값 확인
+    // ALICE_LOG_INFO("[UIGaugeBar] Update called - target: %.2f, current: %.2f, dt: %.4f", m_target, m_current, dt);
+
+
+    // 2. 하락 잔상 (빨간색) 연출
+    // 실제 피(m_current)가 잔상보다 아래에 있다면, 잔상이 틱마다 따라 내려감
     m_current = SmoothDamp(m_current, m_target, m_velocity, m_smoothTime, dt);
 
-    //  lerpDown / lerpUp
-    if (m_target < m_prevTarget)
+    // 2. 하락 잔상 (ch색) 연출
+    // m_current보다 더 느린 시간(m_lerpDownTime)을 설정하여 뒤늦게 따라오게 함
+    if (m_current < m_lerpDown)
     {
-        m_lerpDown = SmoothDamp(m_lerpDown, m_target, m_lerpDownVel, m_lerpDownTime, dt);
-        m_lerpUp = m_current; // 또는 유지 정책
+        m_lerpDown = SmoothDamp(m_lerpDown, m_current, m_lerpDownVel, m_lerpDownTime, dt);
     }
-    else if (m_target > m_prevTarget)
+    else
     {
-        m_lerpUp = SmoothDamp(m_lerpUp, m_target, m_lerpUpVel, m_lerpUpTime, dt);
-        m_lerpDown = m_current; // 또는 유지 정책
+        m_lerpDown = m_current;
     }
-    m_prevTarget = m_target;
+
+    // 3. 상승 잔상 (초록색) 연출
+    if (m_current > m_lerpUp)
+    {
+        m_lerpUp = SmoothDamp(m_lerpUp, m_current, m_lerpUpVel, m_lerpUpTime, dt);
+    }
+    else
+    {
+        m_lerpUp = m_current;
+    }
 
     // Scale 기반으로 게이지 값 반영
     UpdateScaleFromValue();

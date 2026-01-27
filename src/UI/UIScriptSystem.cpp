@@ -256,7 +256,6 @@ void UIScriptSystem::TickUIScriptEntry(UIWorld& world, UIBase* owner, UIScriptEn
 
 	auto* inst = entry.instance.get();
 
-
 	// Awake if (!entry.awoken)
 	{
 
@@ -269,19 +268,15 @@ void UIScriptSystem::TickUIScriptEntry(UIWorld& world, UIBase* owner, UIScriptEn
 			// 주의: void* instPtr = inst; 같은 불필요한 변수 선언은 컴파일러 최적화를 방해할 수 있으므로 제거
 			inst->OnAdded(*owner);
 		}
-
 	}
-
 	// Start if (!entry.started)
 	{
 		entry.started = true;
 		inst->OnStart();
 
 	}
-
 	// Update 호출 (예외 처리로 보호)
 		inst->Update(dt);
-
 }
 
 void UIScriptSystem::EnsureUIScriptInstance(UIWorld& world, UIBase* owner, UIScriptEntry& entry)
@@ -293,7 +288,6 @@ void UIScriptSystem::EnsureUIScriptInstance(UIWorld& world, UIBase* owner, UIScr
 		ALICE_LOG_WARN("[UIScriptSystem] EnsureUIScriptInstance: scriptName is empty, cannot create instance");
 		return;
 	}
-
 	// 공통 
 
 	// 공통 헬퍼 함수 사용: DLL 팩토리 최우선, 실패 시 EXE 레지스트리
@@ -306,20 +300,15 @@ void UIScriptSystem::EnsureUIScriptInstance(UIWorld& world, UIBase* owner, UIScr
 		entry.instance->OwnerID = owner ? owner->ID : 0;
 		entry.instance->World = &world; // World 포인터 주입
 		
-		ALICE_LOG_INFO("[UIScriptSystem] EnsureUIScriptInstance: Instance created successfully - instance=%p, Owner=%p, OwnerID=%lu, World=%p", 
-			entry.instance.get(), entry.instance->Owner, entry.instance->OwnerID, entry.instance->World);
-		
 		// 즉시 실행: OnAdded 호출 (다음 프레임까지 기다리지 않음)
 		if (owner)
 		{
-		
 			entry.awoken = true; // 중복 호출 방지
 			
 			// __try 블록 내에서는 RAII 객체를 사용할 수 없으므로 raw 포인터 추출
 			IUIScript* rawInst = entry.instance.get();
 			UIBase* rawOwner = owner;
-			
-				rawInst->OnAdded(*rawOwner);
+			rawInst->OnAdded(*rawOwner);
 		}
 	}
 }

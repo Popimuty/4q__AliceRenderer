@@ -183,6 +183,7 @@ set(ENGINE_SOURCES
 
 	${ALICE_SRC_DIR}/UI/UIGaugeBar.cpp
 	${ALICE_SRC_DIR}/UI/UI_TextComponent.cpp
+	${ALICE_SRC_DIR}/UI/UITextObject.cpp
 )
 
 set(ENGINE_HEADERS
@@ -350,6 +351,7 @@ set(ENGINE_HEADERS
 
 	${ALICE_SRC_DIR}/UI/UIGaugeBar.h
 	${ALICE_SRC_DIR}/UI/UI_TextComponent.h
+	${ALICE_SRC_DIR}/UI/UITextObject.h
 )
 
 add_library(Engine STATIC
