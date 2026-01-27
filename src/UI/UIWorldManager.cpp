@@ -161,7 +161,7 @@ void UIWorldManager::Initalize(ID3D11Device* pDev, ID3D11DeviceContext* pDevCon,
 }
 
 
-void UIWorldManager::Update(UINT w, UINT h, bool editorMode)
+void UIWorldManager::Update(UINT w, UINT h, float deltaTime,bool editorMode)
 {
     m_curWidth = w;
     m_curHeight = h;

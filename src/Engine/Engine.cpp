@@ -1785,7 +1785,7 @@ namespace Alice
 		if(pImpl->m_uiWorld.m_d3dDev)
 		{
 			// UI 시스템 리사이즈 (텍스처 재생성 및 D2D RenderTarget 리사이즈)
-			pImpl->m_uiWorld.Resize(width, height);
+			//pImpl->m_uiWorld.Resize(width, height);
 		}
 		
 	}
